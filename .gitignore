@@ -1,0 +1,4 @@
+frontend/firebase-config.js
+functions/node_modules/
+.firebase/
+.env

@@ -1,0 +1,1873 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tablero de Turnos y Cobertura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: { gtrOrange:'#f97316', gtrGreen:'#22c55e' } } } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F7F7F7; --border:#D7D7D7;
+    --text:#121212; --text-dim:#474646; --text-faint:#777474;
+    --live:#00ACC1; --live-bg:#E6F8FB; --lunch:#F4A261; --shift:#7F4CA5; --break:#2A9D8F;
+    --warn:#E99B13; --warn-bg:#FFF4D8;
+    --info:#00363E; --info-bg:#E1F1F3;
+    --gap:#F9A825; --gap-bg:#FFF7DF;
+    --shadow: 0 1px 2px rgba(20,32,27,0.06), 0 6px 20px rgba(20,32,27,0.05);
+    --radius: 10px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F7F7F7; --border:#D7D7D7;
+      --text:#121212; --text-dim:#474646; --text-faint:#777474;
+      --live:#00ACC1; --live-bg:#E6F8FB; --lunch:#F4A261; --shift:#7F4CA5; --break:#2A9D8F;
+      --warn:#E99B13; --warn-bg:#FFF4D8;
+      --info:#00363E; --info-bg:#E1F1F3;
+      --gap:#F9A825; --gap-bg:#FFF7DF;
+      --shadow: 0 1px 2px rgba(18,18,18,0.06), 0 6px 20px rgba(18,18,18,0.05);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F7F7F7; --border:#D7D7D7;
+    --text:#121212; --text-dim:#474646; --text-faint:#777474;
+    --live:#00ACC1; --live-bg:#E6F8FB; --lunch:#F4A261; --shift:#7F4CA5; --break:#2A9D8F;
+    --warn:#E99B13; --warn-bg:#FFF4D8;
+    --info:#00363E; --info-bg:#E1F1F3;
+    --gap:#F9A825; --gap-bg:#FFF7DF;
+    --shadow: 0 1px 2px rgba(18,18,18,0.06), 0 6px 20px rgba(18,18,18,0.05);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.font-display{ font-family:'Archivo',system-ui,sans-serif; }
+
+  .wrap{ max-width:1400px; margin:0 auto; padding:20px 20px 60px; }
+
+  /* header */
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+    flex-wrap:wrap; padding-bottom:18px; margin-bottom:18px;
+    border-bottom:4px solid var(--live); padding:16px 18px 18px; border-radius:0 0 10px 10px;
+    background:linear-gradient(110deg,#E1F1F3 0%,#FFFFFF 58%,#FFF4D8 100%);
+  }
+  .title-block h1{ font-size:22px; font-weight:800; margin:0 0 4px; letter-spacing:-0.01em;}
+  .title-block p{ margin:0; color:var(--text-dim); font-size:13.5px; }
+  .top-actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .icon-btn{ width:40px; height:40px; justify-content:center; padding:0; font-size:19px; }
+  .meta-pill{
+    font-size:12px; color:var(--text-dim); background:var(--panel-2);
+    border:1px solid var(--border); border-radius:999px; padding:6px 12px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .meta-pill b{ color:var(--text); font-weight:600; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex:none; }
+  .dot.on{ background:var(--live); box-shadow:0 0 0 3px var(--live-bg); }
+
+  button, .btn{
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:600;
+    border-radius:8px; border:1px solid var(--border); background:var(--panel);
+    color:var(--text); padding:9px 14px; cursor:pointer; display:inline-flex;
+    align-items:center; gap:7px; transition:border-color .15s, background .15s;
+  }
+  button:hover{ border-color:var(--text-faint); }
+  button.primary{ background:var(--text); color:var(--bg); border-color:var(--text); }
+  button.primary:hover{ opacity:.88; }
+  button.danger{ color:var(--gap); }
+  button.danger:hover{ border-color:var(--gap); background:var(--gap-bg); }
+  button:disabled{ opacity:.45; cursor:not-allowed; }
+  input[type=file]{ display:none; }
+
+  /* empty state */
+  .empty{
+    border:1px dashed var(--border); border-radius:var(--radius); padding:60px 30px;
+    text-align:center; color:var(--text-dim); background:var(--panel);
+  }
+  .empty h2{ color:var(--text); font-size:18px; margin:0 0 8px; }
+  .empty p{ max-width:480px; margin:0 auto 20px; font-size:14px; line-height:1.6; }
+  .login-box{ display:grid; gap:8px; max-width:320px; margin:0 auto; }
+  .login-box input{ font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text); }
+  .login-dialog{ position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px; background:rgba(18,18,18,.48); }
+  .login-dialog[hidden]{ display:none; }
+  .login-dialog-box{ position:relative; display:grid; gap:10px; width:min(360px,100%); padding:24px; border:1px solid var(--border); border-radius:var(--radius); background:var(--panel); box-shadow:var(--shadow); }
+  .login-dialog-box h2{ margin:0 0 4px; font-size:20px; }
+  .login-dialog-box input{ font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text); }
+  .login-close{ position:absolute; top:8px; right:8px; border:0; background:transparent; font-size:24px; padding:3px 8px; }
+
+  /* tabs (view switch) */
+  .view-switch{ display:flex; gap:8px; margin-bottom:16px; }
+  .view-switch button{ padding:10px 16px; }
+  .view-switch button.active{ background:var(--text); color:var(--bg); border-color:var(--text); }
+
+  /* filter bar */
+  .filterbar{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;
+  }
+  .filterbar input[type=text], .filterbar select{
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:9px 12px;
+    border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text);
+    min-width:160px;
+  }
+  .filterbar input[type=text]{ min-width:220px; }
+  .legajo-search{ position:relative; min-width:260px; }
+  .legajo-search input{ width:100%; }
+  .legajo-suggestions{ position:absolute; z-index:25; top:calc(100% + 5px); left:0; right:0; max-height:240px; overflow:auto; padding:5px; background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); }
+  .legajo-suggestion{ display:block; width:100%; padding:8px 10px; border:0; border-radius:6px; text-align:left; background:transparent; color:var(--text); font-size:12.5px; }
+  .legajo-suggestion:hover{ background:var(--panel-2); }
+
+  .msel{ position:relative; }
+  .msel-btn{
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:9px 12px;
+    border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text);
+    min-width:170px; text-align:left; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .msel-btn .chev{ color:var(--text-faint); font-size:11px; }
+  .msel-panel{
+    position:absolute; z-index:20; top:calc(100% + 6px); left:0; min-width:230px; max-height:280px; overflow-y:auto;
+    background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); padding:6px;
+  }
+  .msel-item{ padding:6px 8px; border-radius:6px; font-size:13px; }
+  .msel-item:hover{ background:var(--panel-2); }
+  .msel-item label{ display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .msel-all{ border-bottom:1px solid var(--border); margin-bottom:4px; padding-bottom:8px; font-weight:600; }
+
+  .gran-toggle{ display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .gran-toggle button{ border:none; border-radius:0; padding:9px 14px; background:var(--panel); }
+  .gran-toggle button.active{ background:var(--text); color:var(--bg); }
+  .gran-toggle button + button{ border-left:1px solid var(--border); }
+  .copy-detail{ margin-left:auto; }
+  .clear-filters{ color:var(--info); border-color:#55D7ED; background:#E6F8FB; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px; padding:4px 18px 18px; }
+  .stat-card{ border:1px solid var(--border); border-radius:8px; padding:12px 14px; background:#F0FAFB; border-left:5px solid var(--live); }
+  .stat-card:nth-child(2){ background:#FFF9E8; border-left-color:var(--warn); }
+  .stat-card:nth-child(3){ background:#E9FBFB; border-left-color:var(--break); }
+  .stat-card:nth-child(4){ background:#F7F2FC; border-left-color:var(--shift); }
+  .stat-card .l{ font-size:11.5px; color:var(--text-dim); margin-bottom:4px; }
+  .stat-card .v{ font-family:'Archivo',sans-serif; font-size:19px; font-weight:800; }
+  .stat-card .v small{ font-family:'Inter'; font-size:12px; font-weight:600; color:var(--text-dim); margin-left:6px; }
+
+  .daychips{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .daychip{
+    padding:9px 13px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel); cursor:pointer; font-size:13px; font-weight:600;
+    color:var(--text-dim); line-height:1.25; text-align:center;
+    transition:background .15s ease, border-color .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .daychip small{ display:block; font-weight:500; font-size:11px; color:var(--text-faint); }
+  .daychip:hover{ border-color:#00ACC1; color:#00363E; transform:translateY(-1px); }
+  .daychip:hover small{ color:#146B75; }
+  .daychip[data-day="ALL"], .daychip[data-day="AVG"]{ background:#E1F1F3; color:#006B78; border-color:#55D7ED; }
+  .daychip[data-day="SUMMARY"]{ background:#FFF4D8; color:#8A5A00; border-color:#FDD835; }
+  .daychip[data-day]:not([data-day="ALL"]):not([data-day="AVG"]):not([data-day="SUMMARY"]){ background:#EEF3FA; color:#24527A; border-color:#B9CFE5; }
+  .daychip[data-day="ALL"] small, .daychip[data-day="AVG"] small{ color:#287B85; }
+  .daychip[data-day="SUMMARY"] small{ color:#A06A00; }
+  .daychip[data-day]:not([data-day="ALL"]):not([data-day="AVG"]):not([data-day="SUMMARY"]) small{ color:#52718C; }
+  .daychip.active{
+    box-shadow:0 0 0 3px rgba(0,172,193,.18); transform:translateY(-1px);
+  }
+  .daychip.active:not([data-day="ALL"]):not([data-day="AVG"]):not([data-day="SUMMARY"]){
+    background:#E4B37E !important;
+    border-color:#B9783F !important;
+    color:#3B2414 !important;
+    box-shadow:0 0 0 3px rgba(228,179,126,.35);
+  }
+  .daychip.active:not([data-day="ALL"]):not([data-day="AVG"]):not([data-day="SUMMARY"]) small{ color:#69452A !important; }
+
+  /* kpi row */
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px; }
+  .kpi{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; border-top:4px solid var(--live); }
+  .kpi:nth-child(2n){ border-top-color:var(--warn); background:#FFF9E8; }
+  .kpi:nth-child(3n){ border-top-color:var(--info); background:#F0FAFB; }
+  .kpi .n{ font-family:'Archivo',sans-serif; font-size:24px; font-weight:800; }
+  .kpi .l{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+
+  /* panel/table */
+  .panel{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden; }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; padding:16px 18px 12px; flex-wrap:wrap; gap:8px;}
+  .panel-head h3{ margin:0; font-size:15px; font-weight:700; }
+  .panel-head .sub{ font-size:12.5px; color:var(--text-dim); }
+  .tablewrap{ overflow-x:auto; }
+
+  table{ border-collapse:collapse; width:100%; font-size:13px; white-space:nowrap; }
+  thead th{
+    text-align:left; padding:9px 12px; font-size:11px; font-weight:700; color:var(--text-dim);
+    border-bottom:1px solid var(--border); background:var(--panel-2); position:sticky; top:0;
+  }
+  tbody td{ padding:8px 12px; border-bottom:1px solid var(--border); }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--panel-2); }
+  td.num, th.num{ text-align:right; }
+  td.name{ white-space:normal; min-width:150px; }
+  .sub-col{ color:var(--text-faint); font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge.live{ background:var(--live-bg); color:var(--live); }
+  .badge.warn{ background:var(--warn-bg); color:var(--warn); }
+  .badge.info{ background:var(--info-bg); color:var(--info); }
+  .badge.gap{ background:var(--gap-bg); color:var(--gap); }
+  tr.gap-row td{ background:var(--gap-bg); }
+  .muted{ color:var(--text-faint); }
+
+  .gantt-wrap{ overflow-x:auto; }
+  .gantt{ display:grid; grid-template-columns:58px repeat(7,minmax(112px,1fr)); min-width:850px; }
+  .gantt-corner{ border-bottom:1px solid var(--border); background:var(--panel-2); }
+  .gantt-day{ padding:10px 8px; text-align:center; font-size:13px; font-weight:800; color:var(--info); border-left:1px solid var(--border); border-bottom:3px solid var(--live); background:#E6F8FB; }
+  .gantt-day small{ display:block; color:var(--text-faint); font-size:10px; font-weight:500; margin-top:2px; }
+  .gantt-axis{ position:relative; height:900px; border-right:1px solid var(--border); background:var(--panel-2); }
+  .gantt-axis span{ position:absolute; right:6px; transform:translateY(-50%); font-size:14px; font-weight:700; color:var(--text-dim); }
+  .gantt-track{ position:relative; height:900px; border-left:1px solid var(--border); background:transparent !important; }
+  .gantt-track:after{ display:none; }
+  .gantt-shift{ position:absolute; left:14%; right:14%; min-height:8px; border-radius:8px; background:var(--shift); border:2px solid #683A88; box-shadow:0 3px 8px rgba(0,54,62,.16); overflow:hidden; z-index:2; }
+  .gantt-shift-label{ position:absolute; top:4px; left:7px; right:7px; color:#FFFFFF; font-size:14px; font-weight:800; z-index:4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gantt-break{ position:absolute; left:0; right:0; z-index:3; display:flex; align-items:center; justify-content:center; padding:0 3px; background:var(--break); color:#FFFFFF; font-size:14px; font-weight:800; overflow:visible; white-space:nowrap; }
+  .gantt-lunch{ position:absolute; left:0; right:0; z-index:3; display:flex; align-items:center; justify-content:center; padding:0 3px; background:var(--lunch); color:#FFFFFF; font-size:14px; font-weight:800; overflow:visible; white-space:nowrap; }
+  .gantt-legend{ display:flex; gap:18px; flex-wrap:wrap; padding:14px 18px 18px; color:var(--text-dim); font-size:13px; font-weight:700; }
+  .gantt-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .gantt-legend i{ width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .weekly-gantt-detail{ margin-top:18px; }
+
+  .gtr-module{ color:#0f172a; font-family:Inter, sans-serif; }
+  .gtr-banner{ display:flex; justify-content:space-between; gap:16px; align-items:center; padding:22px 24px; border-radius:12px; background:linear-gradient(115deg,#00363E,#00ACC1 62%,#F9A825); color:#fff; margin-bottom:14px; }
+  .gtr-banner h2{ margin:3px 0; font-size:24px; }
+  .gtr-banner p{ margin:0; opacity:.86; font-size:13px; }
+  .gtr-kicker{ font-size:10px; font-weight:800; letter-spacing:.14em; color:#FDD835; }
+  .gtr-connection{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; }
+  .gtr-dot{ width:10px; height:10px; border-radius:50%; background:#FDD835; }.gtr-online{ background:#22c55e; }.gtr-pending{ background:#FDD835; }
+  .gtr-tabs{ display:flex; gap:7px; flex-wrap:wrap; margin-bottom:14px; }.gtr-tabs button{ border-color:#BFECEF; background:#fff; color:#00363E; }.gtr-tabs button.active{ background:#00363E; color:#fff; border-color:#00363E; }
+  .gtr-filters{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }.gtr-filters input,.gtr-filters select,.gtr-table select,.gtr-note,.gtr-code-row input{ border:1px solid #CBD5E1; border-radius:7px; padding:8px 10px; background:#fff; color:#0f172a; font:inherit; font-size:12px; }.gtr-filters input[type=search]{ min-width:220px; }
+  .gtr-clear{ background:#FFF4D8; color:#8A5A00; border-color:#FDD835; }
+  .gtr-save-all{ background:#00363E; color:#fff; border-color:#00363E; padding:7px 10px; font-size:11px; }
+  .gtr-save-all:disabled{ opacity:.45; cursor:not-allowed; }
+  .gtr-kpis{ display:grid; grid-template-columns:repeat(6,minmax(120px,1fr)); gap:9px; margin-bottom:14px; }.gtr-kpi{ background:#fff; border:1px solid #D7E3E5; border-top:4px solid #00ACC1; border-radius:9px; padding:12px; }.gtr-kpi:nth-child(2){ border-top-color:#22c55e; }.gtr-kpi:nth-child(3){ border-top-color:#F9A825; }.gtr-kpi:nth-child(4){ border-top-color:#ef4444; }.gtr-kpi:nth-child(5){ border-top-color:#F4A261; }.gtr-kpi:nth-child(6){ border-top-color:#7F4CA5; }.gtr-kpi b,.gtr-kpi span{ display:block; }.gtr-kpi b{ font-size:22px; }.gtr-kpi span{ color:#475569; font-size:11px; margin-top:2px; }
+  .gtr-table-wrap{ overflow:auto; border:1px solid #D7E3E5; border-radius:10px; background:#fff; }.gtr-table{ min-width:980px; width:100%; border-collapse:collapse; font-size:12px; }.gtr-table th{ background:#00363E; color:#fff; padding:10px; text-align:left; position:sticky; top:0; z-index:2; }.gtr-table td{ padding:8px 10px; border-bottom:1px solid #E2E8F0; vertical-align:middle; }.gtr-table td small,.gtr-table td b{ display:block; }.gtr-table td small{ color:#64748B; font-size:10px; }.gtr-shift-badge{ display:inline-block; padding:5px 8px; border-radius:6px; color:#fff; background:#7F4CA5; font-weight:700; }.gtr-status{ font-weight:700; }.gtr-status.status-AS{ color:#15803d; background:#DCFCE7; }.gtr-status.status-TA{ color:#A16207; background:#FEF3C7; }.gtr-status.status-FAL{ color:#B91C1C; background:#FEE2E2; }.gtr-status.status-MED,.gtr-status.status-PER{ color:#C2410C; background:#FFEDD5; }.gtr-save{ padding:6px 9px; font-size:11px; background:#E6F8FB; color:#00363E; border-color:#55D7ED; }.gtr-month-banner{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:18px; margin-bottom:14px; color:#fff; background:#121212; border-radius:10px; }.gtr-month-banner h3{ margin:0; }.gtr-month-stats{ display:flex; gap:14px; flex-wrap:wrap; color:#FDD835; font-size:12px; font-weight:700; }.gtr-matrix{ min-width:1200px; }.gtr-matrix th,.gtr-matrix td{ text-align:center; min-width:34px; padding:6px 5px; }.gtr-matrix .sticky-left{ position:sticky; left:0; z-index:3; text-align:left; min-width:170px; background:#00363E; }.gtr-matrix td.sticky-left{ background:#fff; color:#0f172a; border-right:1px solid #CBD5E1; }.gtr-code{ display:inline-grid; place-items:center; width:25px; height:22px; border-radius:5px; font-size:10px; font-weight:800; }.gtr-code.status-AS{ background:#DCFCE7; color:#15803d; }.gtr-code.status-TA{ background:#FEF3C7; color:#A16207; }.gtr-code.status-FAL{ background:#FEE2E2; color:#B91C1C; }.gtr-code.status-MED,.gtr-code.status-PER{ background:#FFEDD5; color:#C2410C; }.gtr-code.status-DESC,.gtr-code.status-COMP{ background:#EDE9FE; color:#6D28D9; }.gtr-bar{ width:120px; height:8px; background:#FEE2E2; border-radius:99px; overflow:hidden; }.gtr-bar i{ display:block; height:100%; background:#22c55e; }.gtr-catalog{ background:#fff; border:1px solid #D7E3E5; border-radius:10px; padding:18px; }.gtr-catalog h3{ margin:0 0 4px; }.gtr-catalog p{ color:#64748B; font-size:12px; }.gtr-code-row{ display:grid; grid-template-columns:90px 1fr 150px 80px; gap:8px; align-items:center; margin:8px 0; }.gtr-add{ margin-top:10px; background:#E6F8FB; color:#00363E; border-color:#55D7ED; }
+  @media(max-width:900px){ .gtr-kpis{ grid-template-columns:repeat(3,1fr); }.gtr-banner{ align-items:flex-start; flex-direction:column; }.gtr-code-row{ grid-template-columns:1fr; } }
+
+  .chart-box{ padding:16px 18px 6px; }
+  .chart-holder{ position:relative; width:100%; height:300px; min-height:240px; }
+  .chart-holder canvas{ display:block; width:100% !important; height:100% !important; }
+  .interval-detail table{ table-layout:auto; min-width:620px; }
+  .interval-detail .tablewrap{ max-height:none !important; overflow-y:visible !important; }
+  .interval-detail table{ min-width:0; width:100%; table-layout:fixed; font-size:11px; }
+  .interval-detail th, .interval-detail td{ padding:4px 5px; line-height:1.15; }
+  .interval-detail th:first-child, .interval-detail td:first-child{ width:92px; }
+  .interval-detail .segment-cell{ width:18%; min-width:0; max-width:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .interval-detail th.num, .interval-detail td.num{ min-width:0; }
+  .interval-detail .heat-cell{ transition:background .15s; }
+  .interval-detail .heat-cell .distribution{ display:inline; margin-left:3px; font-size:9px; color:var(--text-dim); font-weight:600; }
+  .weekly-selected-day td{ background:#E8F6F7; }
+  .weekly-selected-day td:first-child{ border-left:4px solid #00ACC1; }
+  .weekly-selected-day:hover td{ background:#D7F0F2; }
+  .legend-row{ display:flex; gap:18px; flex-wrap:wrap; padding:0 18px 14px; font-size:12.5px; color:var(--text-dim); }
+  .legend-row span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+  .alerts{ padding:4px 18px 18px; }
+  .alert-item{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
+    background:var(--gap-bg); color:var(--gap); font-size:13px; font-weight:600; margin-bottom:6px;
+  }
+  .alert-item .t{ font-family:'Archivo',sans-serif; font-weight:700; min-width:52px; }
+  .no-alert{ color:var(--text-dim); font-size:13px; padding:6px 0; }
+
+  footer.note{ text-align:center; color:var(--text-faint); font-size:12px; padding:26px 0 6px; }
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--bg); padding:11px 18px; border-radius:8px;
+    font-size:13.5px; font-weight:600; box-shadow:var(--shadow); z-index:50; max-width:90vw;
+  }
+  .toast.err{ background:var(--gap); color:#fff; }
+
+  ::-webkit-scrollbar{ height:8px; width:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:8px; }
+
+  @media (max-width:640px){
+    .wrap{ padding:14px 12px 40px; }
+    header.top{ flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title-block">
+      <h1>Tablero de Turnos y Cobertura</h1>
+      <p>Turnos operativos, almuerzos, breaks y cobertura de personal por franja horaria.</p>
+    </div>
+    <div class="top-actions"></div>
+  </header>
+
+  <div id="appRoot">
+    <div class="empty">
+      <h2>Aún no hay datos cargados</h2>
+      <p>Carga el archivo CSV de programación (Apex) con el botón "Cargar CSV". Una vez cargado, todos los que abran este tablero verán la misma información.</p>
+    </div>
+  </div>
+
+  <footer class="note">Carga y borrado disponibles para quienes tienen permiso de edición · Los datos se comparten con todos los que abren este tablero.</footer>
+</div>
+
+<div id="loginDialog" class="login-dialog" hidden>
+  <div class="login-dialog-box" role="dialog" aria-modal="true" aria-labelledby="loginDialogTitle">
+    <button type="button" class="login-close" id="loginClose" aria-label="Cerrar">×</button>
+    <h2 id="loginDialogTitle">Iniciar sesión</h2>
+    <input type="email" id="headerLoginEmail" placeholder="Correo electrónico" autocomplete="username" />
+    <input type="password" id="headerLoginPassword" placeholder="Contraseña" autocomplete="current-password" />
+    <button type="button" class="primary" id="headerLoginBtn">Iniciar sesión</button>
+    <div id="headerLoginMessage" class="muted"></div>
+  </div>
+</div>
+
+<script>
+/* ============================= CONFIG ============================= */
+const CHUNK_SIZE = 1000;
+const REQUIRED_COLS = ['Legajo','Nombres','Apellidos','Equipo','Fecha','Código','Ingreso Operativo','Salida Operativa','Inicio código','Final código','Skills'];
+const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1Dzdmq-ISYY_wx3u9rl0AkbXjeRjPvGSXk-1A30cy2T4/export?format=csv&gid=2129927352';
+const WEEKDAYS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const WEEKDAYS_SHORT = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+/* ============================= STATE ============================= */
+let state = {
+  rows: null,           // array of [legajo,nombres,apellidos,equipo,fecha,codigo,ingOp,salOp,inicio,final,skills] (strings/ISO)
+  meta: null,           // {fileName, uploadedAt, totalRows}
+  roster: null,         // Map key(legajo|fecha) -> {legajo,nombre,equipo,skills,fecha,ingOp,salOp(ms)}
+  detail: null,         // Map key(legajo|fecha) -> {..., almuerzo:{ini,fin}|null, breaks:[{ini,fin}]}
+  dates: [],            // sorted array of fecha keys 'YYYY-MM-DD'
+  equipos: [],
+  skills: [],
+  maxBreaks: 0,
+  view: 'weekly',        // 'weekly' | 'coverage'
+  weekDayFilter: 'ALL',   // 'ALL' | 'SUMMARY' | a fecha key
+  selectedWeek: null,
+  covDayFilter: null,     // 'AVG' | a fecha key
+  granularity: 30,        // 30 | 60 (minutes) — used in Vista 2
+  search: '',
+  equipoFilter: 'ALL',
+  skillFilters: [],       // array of selected segmentos; [] = todos
+  selectedLegajo: 'ALL',
+  canWrite: true,
+  chart: null,
+  unsub: null,
+  skillMenuOpen: false,
+  canViewCoverage: false,
+  canAdmin: false,
+  firebaseAccess: null,
+};
+window.gtrState = state;
+
+/* ============================= UTIL: CSV / DATES ============================= */
+function parseCSVText(text){
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const nl = text.indexOf('\n');
+  const firstLine = text.slice(0, nl > -1 ? nl : text.length);
+  const semi = (firstLine.match(/;/g)||[]).length;
+  const comma = (firstLine.match(/,/g)||[]).length;
+  const delim = semi >= comma ? ';' : ',';
+
+  const rows = []; let row = []; let field = ''; let inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field+='"'; i++; } else { inQuotes = false; }
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === delim){ row.push(field); field=''; }
+      else if(c === '\n'){ row.push(field); field=''; rows.push(row); row=[]; }
+      else field += c;
+    }
+  }
+  if(field.length>0 || row.length>0){ row.push(field); rows.push(row); }
+  while(rows.length && rows[rows.length-1].length===1 && rows[rows.length-1][0]===''){ rows.pop(); }
+
+  const header = rows[0].map(h=>h.trim());
+  const idx = {};
+  header.forEach((h,i)=>{ idx[h]=i; });
+  const out = [];
+  for(let r=1;r<rows.length;r++){
+    const rr = rows[r];
+    if(rr.length===1 && rr[0]==='') continue;
+    out.push(rr);
+  }
+  return { header, idx, out };
+}
+
+function parseDateStr(s){
+  if(!s) return null;
+  s = s.trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if(m) return Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if(m) return Date.UTC(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0));
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return Date.UTC(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return Date.UTC(+m[3], +m[2]-1, +m[1]);
+  return null;
+}
+function parseDateOrTime(s, baseDateMs){
+  const parsed = parseDateStr(s);
+  if(parsed!=null || !s || baseDateMs==null) return parsed;
+  const match = String(s).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if(!match) return null;
+  const base = new Date(baseDateMs);
+  return Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), +match[1], +match[2], +(match[3]||0));
+}
+function dateKeyFromMs(ms){
+  const d = new Date(ms);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+function fmtTime(ms){
+  if(ms==null) return '—';
+  const d = new Date(ms);
+  return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+}
+function fmtDateShort(fechaKey){
+  const [y,m,d] = fechaKey.split('-').map(Number);
+  return String(d).padStart(2,'0')+'/'+String(m).padStart(2,'0');
+}
+function fmtHours(hDecimal){
+  if(hDecimal==null || isNaN(hDecimal)) return '—';
+  const sign = hDecimal < 0 ? '-' : '';
+  hDecimal = Math.abs(hDecimal);
+  const h = Math.floor(hDecimal);
+  const mnt = Math.round((hDecimal - h)*60);
+  if(mnt===60) return sign+(h+1)+'h 00m';
+  return sign+h+'h '+String(mnt).padStart(2,'0')+'m';
+}
+function weekdayLabel(fechaKey){
+  const [y,m,d] = fechaKey.split('-').map(Number);
+  const wd = new Date(Date.UTC(y,m-1,d)).getUTCDay();
+  return WEEKDAYS[wd];
+}
+function weekdayShort(fechaKey){
+  const [y,m,d] = fechaKey.split('-').map(Number);
+  const wd = new Date(Date.UTC(y,m-1,d)).getUTCDay();
+  return WEEKDAYS_SHORT[wd];
+}
+
+function weekKeyForDate(fechaKey){
+  const [year, month, day] = fechaKey.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month-1, day));
+  const mondayOffset = (date.getUTCDay()+6)%7;
+  date.setUTCDate(date.getUTCDate()-mondayOffset);
+  return dateKeyFromMs(date.getTime());
+}
+
+function availableWeeks(){
+  const groups = new Map();
+  for(const dateKey of state.dates){
+    const key = weekKeyForDate(dateKey);
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(dateKey);
+  }
+  return Array.from(groups.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
+}
+
+function selectedWeekDates(){
+  const weeks = availableWeeks();
+  if(!weeks.length) return [];
+  const selected = state.selectedWeek || weeks[weeks.length-1][0];
+  const found = weeks.find(([key])=>key===selected);
+  return found ? found[1] : weeks[weeks.length-1][1];
+}
+
+function normalizeOvernightEnd(start, end){
+  if(start==null || end==null) return end;
+  return end <= start ? end + 86400000 : end;
+}
+
+/* ============================= BUILD MODEL ============================= */
+function buildModel(rows){
+  const roster = new Map();   // key -> {legajo,nombre,equipo,skills,fecha,ingOp,salOp}
+  const detailRaw = new Map(); // key -> array of {codigo,inicio,final}
+  const equipos = new Set(); const skills = new Set(); const dateSet = new Set();
+
+  for(const r of rows){
+    const [legajo,nombres,apellidos,equipo,fecha,codigo,ingOpS,salOpS,inicioS,finalS,skillS] = r;
+    const fechaMs = parseDateStr(fecha);
+    if(fechaMs==null || !legajo) continue;
+    const fechaKey = dateKeyFromMs(fechaMs);
+    dateSet.add(fechaKey);
+    const key = legajo+'|'+fechaKey;
+    const ingOp = parseDateOrTime(ingOpS, fechaMs);
+    const salOp = normalizeOvernightEnd(ingOp, parseDateOrTime(salOpS, fechaMs));
+    equipo && equipos.add(equipo);
+    if(skillS) skillS.split(';').forEach(s=>{ s=s.trim(); if(s) skills.add(s); });
+
+    let rec = roster.get(key);
+    if(!rec){
+      rec = { legajo, nombre:(nombres+' '+apellidos).trim(), equipo, skills:skillS||'', fecha:fechaKey, ingOp, salOp };
+      roster.set(key, rec);
+    } else {
+      if(ingOp!=null && (rec.ingOp==null || ingOp < rec.ingOp)) rec.ingOp = ingOp;
+      if(salOp!=null && (rec.salOp==null || salOp > rec.salOp)) rec.salOp = salOp;
+      if(!rec.skills && skillS) rec.skills = skillS;
+    }
+
+    if(codigo === 'Almuerzo (DSX)' || codigo === 'BREAK'){
+      if(!detailRaw.has(key)) detailRaw.set(key, []);
+      const inicio = parseDateOrTime(inicioS, fechaMs);
+      detailRaw.get(key).push({ codigo, inicio, final: normalizeOvernightEnd(inicio, parseDateOrTime(finalS, fechaMs)) });
+    }
+  }
+
+  const detail = new Map();
+  let maxBreaks = 0;
+  for(const [key, list] of detailRaw){
+    list.sort((a,b)=> (a.inicio||0)-(b.inicio||0));
+    let almuerzo = null; const breaks = [];
+    for(const it of list){
+      if(it.codigo === 'Almuerzo (DSX)') almuerzo = { ini: it.inicio, fin: it.final };
+      else breaks.push({ ini: it.inicio, fin: it.final });
+    }
+    if(breaks.length > maxBreaks) maxBreaks = breaks.length;
+    detail.set(key, { almuerzo, breaks });
+  }
+
+  const dates = Array.from(dateSet).sort();
+  return {
+    roster, detail, dates,
+    equipos: Array.from(equipos).sort((a,b)=>a.localeCompare(b,'es')),
+    skills: Array.from(skills).sort((a,b)=>a.localeCompare(b,'es')),
+    maxBreaks
+  };
+}
+
+function durationHrs(a,b){ if(a==null||b==null) return 0; return Math.max(0,(b-a))/3600000; }
+
+function netHoursForShift(rosterRec, detailRec){
+  // Horas netas = turno - almuerzo únicamente. Los breaks son tiempo pagado
+  // (no se descuentan de las horas netas), a diferencia de la cobertura en
+  // vivo (Vista 2), donde sí se restan porque la persona no está disponible.
+  if(!rosterRec || rosterRec.ingOp==null || rosterRec.salOp==null) return null;
+  let h = durationHrs(rosterRec.ingOp, rosterRec.salOp);
+  if(detailRec && detailRec.almuerzo) h -= durationHrs(detailRec.almuerzo.ini, detailRec.almuerzo.fin);
+  return Math.max(0,h);
+}
+
+/* ============================= STORAGE (db capability) ============================= */
+let dbRef = null; let userRef = null;
+let firebaseModulePromise = null;
+async function getDb(){ if(dbRef===undefined) return null; if(dbRef) return dbRef; try{ dbRef = await claude.use('db'); }catch(e){ dbRef = null; } return dbRef; }
+async function getUser(){ if(userRef) return userRef; try{ userRef = await claude.use('user'); }catch(e){ userRef=null; } return userRef; }
+function getFirebaseModule(){
+  if(!firebaseModulePromise) firebaseModulePromise = import('./frontend/firebase-auth.js').catch(()=>null);
+  return firebaseModulePromise;
+}
+
+async function checkPermissions(){
+  const firebase = await getFirebaseModule();
+  if(firebase){
+    state.firebaseAccess = await firebase.getAccess();
+    state.canWrite = state.firebaseAccess.canWrite;
+    state.canViewCoverage = state.firebaseAccess.canCoverage;
+    state.canAdmin = state.firebaseAccess.isAdmin;
+    renderHeaderControls();
+    return;
+  }
+  const user = await getUser();
+  if(!user){ state.canWrite = false; state.canViewCoverage = false; return; }
+  try{
+    const canWrite = user.can ? await user.can('data.write') : null;
+    const canCoverage = user.can ? await user.can('coverage.read') : null;
+    state.canWrite = (canWrite === null) ? true : !!canWrite;
+    state.canViewCoverage = (canCoverage === null) ? true : !!canCoverage;
+    state.canAdmin = false;
+  }catch(e){ state.canWrite = true; state.canViewCoverage = false; }
+  renderHeaderControls();
+}
+
+async function loadFromDb(){
+  const db = await getDb();
+  if(!db) return { ok:false, reason:'no-db' };
+  try{
+    const metaSnap = await db.doc('meta/info').get();
+    if(!metaSnap.exists) return { ok:true, empty:true };
+    const meta = metaSnap.data();
+    const chunkCount = meta.chunkCount || 0;
+    const rows = [];
+    for(let i=0;i<chunkCount;i++){
+      const cs = await db.collection('chunks').doc('c'+i).get();
+      if(cs.exists){
+        const d = cs.data();
+        if(d && Array.isArray(d.rows)) rows.push(...d.rows);
+      }
+    }
+    return { ok:true, empty:false, rows, meta };
+  }catch(e){
+    return { ok:false, reason:'error', error:e };
+  }
+}
+
+async function saveToDb(rows, fileName){
+  const db = await getDb();
+  if(!db) throw { code:'no-db', message:'Almacenamiento compartido no disponible' };
+  // find previous chunk count to clean up leftovers
+  let prevChunkCount = 0;
+  try{
+    const metaSnap = await db.doc('meta/info').get();
+    if(metaSnap.exists) prevChunkCount = metaSnap.data().chunkCount || 0;
+  }catch(e){}
+
+  const chunkCount = Math.ceil(rows.length / CHUNK_SIZE) || 0;
+  for(let i=0;i<chunkCount;i++){
+    const slice = rows.slice(i*CHUNK_SIZE, (i+1)*CHUNK_SIZE);
+    await db.collection('chunks').doc('c'+i).set({ rows: slice });
+  }
+  if(prevChunkCount > chunkCount){
+    for(let i=chunkCount;i<prevChunkCount;i++){
+      try{ await db.collection('chunks').doc('c'+i).delete(); }catch(e){}
+    }
+  }
+  const meta = { fileName: fileName||'archivo.csv', uploadedAt: new Date().toISOString(), totalRows: rows.length, chunkCount };
+  await db.doc('meta/info').set(meta);
+  return meta;
+}
+
+async function clearDb(){
+  const db = await getDb();
+  if(!db) throw { code:'no-db', message:'Almacenamiento compartido no disponible' };
+  let chunkCount = 0;
+  try{
+    const metaSnap = await db.doc('meta/info').get();
+    if(metaSnap.exists) chunkCount = metaSnap.data().chunkCount || 0;
+  }catch(e){}
+  for(let i=0;i<chunkCount;i++){
+    try{ await db.collection('chunks').doc('c'+i).delete(); }catch(e){}
+  }
+  await db.doc('meta/info').delete();
+}
+
+/* local fallback (per-browser only, used only when db capability unavailable) */
+const LS_KEY = 'turnos_dashboard_fallback_v1';
+function saveLocal(rows, fileName){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({ fileName, uploadedAt:new Date().toISOString(), rows }));
+    return true;
+  }catch(e){ return false; }
+}
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+function clearLocal(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
+
+/* ============================= LOAD + INIT ============================= */
+let dbAvailable = false;
+
+async function initApp(){
+  const db = await getDb();
+  dbAvailable = !!db;
+  await checkPermissions();
+
+  if(dbAvailable){
+    try{
+      const res = await loadFromDb();
+      if(res.ok && !res.empty){
+        applyLoadedData(res.rows, res.meta, true);
+      } else {
+        renderEmpty();
+      }
+    }catch(e){ renderEmpty(); }
+    subscribeMeta();
+  } else {
+    const local = loadLocal();
+    if(local && local.rows && local.rows.length){
+      applyLoadedData(local.rows, { fileName: local.fileName, uploadedAt: local.uploadedAt, totalRows: local.rows.length }, false);
+    } else {
+      renderEmpty();
+    }
+  }
+}
+
+function subscribeMeta(){
+  claude.use('db').then(db=>{
+    if(!db) return;
+    if(state.unsub) { try{ state.unsub(); }catch(e){} }
+    state.unsub = db.doc('meta/info').onSnapshot(async (snap)=>{
+      if(!snap.exists){
+        state.rows = null; state.meta = null;
+        renderEmpty();
+        return;
+      }
+      const meta = snap.data();
+      // only reload if uploadedAt changed
+      if(state.meta && state.meta.uploadedAt === meta.uploadedAt) return;
+      const res = await loadFromDb();
+      if(res.ok && !res.empty){ applyLoadedData(res.rows, res.meta, true); }
+    }, (err)=>{ /* silent */ });
+  });
+}
+
+function applyLoadedData(rows, meta, fromShared){
+  state.rows = rows;
+  state.meta = meta;
+  const model = buildModel(rows);
+  state.roster = model.roster;
+  state.detail = model.detail;
+  state.dates = model.dates;
+  state.equipos = model.equipos;
+  state.skills = model.skills;
+  state.maxBreaks = Math.max(1, model.maxBreaks);
+  window.dispatchEvent(new CustomEvent('gtr:source-updated', { detail: { rows, model } }));
+  const weeks = availableWeeks();
+  if(!state.selectedWeek || !weeks.some(([key])=>key===state.selectedWeek)) state.selectedWeek = weeks.length ? weeks[weeks.length-1][0] : null;
+  if(state.weekDayFilter==='ALL' && state.dates.length){ /* keep ALL */ }
+  if(state.covDayFilter !== 'AVG' && !state.dates.includes(state.covDayFilter)) state.covDayFilter = state.dates[0] || null;
+  renderHeaderControls();
+  renderApp();
+}
+
+/* ============================= UPLOAD / DELETE HANDLERS ============================= */
+function rowsFromParsedCSV(parsed){
+  const missing = REQUIRED_COLS.filter(c=> !(c in parsed.idx));
+  if(missing.length) throw new Error('Faltan columnas: '+missing.join(', '));
+  return parsed.out.map(rr=> REQUIRED_COLS.map(c=> (rr[parsed.idx[c]]!==undefined ? rr[parsed.idx[c]].trim() : ''))).filter(rr=>rr.some(Boolean));
+}
+
+function rowsFromSheetCSV(parsed){
+  const hasRequiredHeaders = REQUIRED_COLS.every(c=> c in parsed.idx);
+  if(hasRequiredHeaders) return rowsFromParsedCSV(parsed);
+  if(parsed.header.length < REQUIRED_COLS.length) throw new Error('La pestaña Codigos_omnia no tiene al menos 11 columnas utilizables.');
+  return parsed.out.map(rr=> REQUIRED_COLS.map((c,index)=> (rr[index]!==undefined ? rr[index].trim() : ''))).filter(rr=>rr.some(Boolean));
+}
+
+async function storeRows(rows, fileName, successMessage){
+  if(!rows.length) throw new Error('La fuente no tiene filas de datos.');
+  if(dbAvailable){
+    const meta = await saveToDb(rows, fileName);
+    applyLoadedData(rows, meta, true);
+  } else {
+    saveLocal(rows, fileName);
+    applyLoadedData(rows, { fileName, uploadedAt:new Date().toISOString(), totalRows: rows.length }, false);
+  }
+  showToast(successMessage+' '+rows.length+' filas.');
+}
+
+document.addEventListener('change', async (e)=>{
+  if(e.target.id !== 'fileInput') return;
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  showToast('Leyendo archivo…');
+  try{
+    const text = await file.text();
+    const parsed = parseCSVText(text);
+    showToast('Guardando datos compartidos…');
+    await storeRows(rowsFromParsedCSV(parsed), file.name, 'Datos cargados:');
+  }catch(err){
+    console.error(err);
+    const msg = (err && err.message) ? err.message : 'No se pudo cargar el archivo.';
+    showToast('Error: '+msg, true);
+  }
+});
+
+document.addEventListener('click', async (e)=>{
+  if(e.target.id !== 'sheetBtn') return;
+  const sheetBtn = e.target;
+  sheetBtn.disabled = true;
+  showToast('Leyendo pestaña Codigos_omnia…');
+  try{
+    const response = await fetch(GOOGLE_SHEET_CSV_URL, { cache:'no-store' });
+    if(!response.ok) throw new Error('Google Sheets respondió '+response.status+'. Comparte la hoja como lector o publícala como CSV.');
+    const parsed = parseCSVText(await response.text());
+    await storeRows(rowsFromSheetCSV(parsed), 'Google Sheet · Codigos_omnia', 'Datos leídos desde Google Sheet:');
+  }catch(err){
+    showToast('No se pudo leer Google Sheet: '+(err.message||'revisa los permisos de la hoja.'), true);
+  }finally{
+    sheetBtn.disabled = false;
+  }
+});
+
+document.addEventListener('click', async (e)=>{
+  if(e.target.id !== 'deleteBtn') return;
+  if(!confirm('¿Borrar los datos cargados? Esta acción afecta a todos los que ven este tablero.')) return;
+  try{
+    if(dbAvailable){ await clearDb(); } else { clearLocal(); }
+    state.rows = null; state.meta = null; state.roster=null; state.detail=null; state.dates=[];
+    renderEmpty();
+    showToast('Datos borrados.');
+  }catch(err){
+    showToast('No se pudo borrar: '+(err&&err.message||'sin permiso'), true);
+  }
+});
+
+function showToast(msg, isErr){
+  let t = document.getElementById('toastEl');
+  if(t) t.remove();
+  t = document.createElement('div');
+  t.id = 'toastEl';
+  t.className = 'toast'+(isErr?' err':'');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.remove(); }, isErr ? 4200 : 2600);
+}
+
+/* ============================= RENDER: HEADER ============================= */
+function renderHeaderControls(){
+  const actions = document.querySelector('.top-actions');
+  if(actions){
+    actions.innerHTML = '<button type="button" class="icon-btn" id="headerLoginButton" aria-label="Iniciar sesión o abrir configuración" title="Iniciar sesión / Configuración">⚙</button>';
+    document.getElementById('headerLoginButton').onclick = ()=>{
+      if(state.firebaseAccess && state.firebaseAccess.authenticated && state.canWrite){ state.view='config'; renderApp(); }
+      else openLoginDialog();
+    };
+  }
+}
+
+function openLoginDialog(){
+  const dialog = document.getElementById('loginDialog');
+  if(dialog) dialog.hidden = false;
+  const email = document.getElementById('headerLoginEmail');
+  if(email) email.focus();
+}
+
+function closeLoginDialog(){
+  const dialog = document.getElementById('loginDialog');
+  if(dialog) dialog.hidden = true;
+}
+
+document.getElementById('loginClose').onclick = closeLoginDialog;
+document.getElementById('loginDialog').addEventListener('click', (event)=>{
+  if(event.target.id === 'loginDialog') closeLoginDialog();
+});
+document.getElementById('headerLoginBtn').onclick = async ()=>{
+  const message = document.getElementById('headerLoginMessage');
+  const button = document.getElementById('headerLoginBtn');
+  const firebase = await getFirebaseModule();
+  if(!firebase){ message.textContent='No se pudo conectar con Firebase.'; return; }
+  button.disabled = true;
+  try{
+    await firebase.signIn(document.getElementById('headerLoginEmail').value.trim(), document.getElementById('headerLoginPassword').value);
+    await checkPermissions();
+    closeLoginDialog();
+    if(state.meta) renderApp(); else renderEmpty();
+  }catch(error){ message.textContent='No se pudo iniciar sesión. Verifica correo y contraseña.'; }
+  button.disabled = false;
+};
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderEmpty(){
+  renderHeaderControls();
+  document.getElementById('appRoot').innerHTML = `
+    <div class="empty">
+      <h2>Aún no hay datos cargados</h2>
+      <p>Inicia sesión para acceder a los datos y a las opciones autorizadas.</p>
+      <div class="login-box" ${state.firebaseAccess && state.firebaseAccess.authenticated ? 'style="display:none;"' : ''}>
+        <input type="email" id="loginEmail" placeholder="Correo electrónico" autocomplete="username" />
+        <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password" />
+        <button type="button" class="primary" id="loginBtn">Iniciar sesión</button>
+        <div id="loginMessage" class="muted"></div>
+      </div>
+      ${state.firebaseAccess && state.firebaseAccess.authenticated && state.canWrite ? '<button type="button" id="emptyConfigBtn" class="primary">Abrir configuración</button>' : ''}
+    </div>`;
+  const emptyConfigBtn = document.getElementById('emptyConfigBtn');
+  if(emptyConfigBtn) emptyConfigBtn.onclick = ()=>{ state.view='config'; renderApp(); };
+  const loginBtn = document.getElementById('loginBtn');
+  loginBtn.onclick = async ()=>{
+    const firebase = await getFirebaseModule();
+    const message = document.getElementById('loginMessage');
+    if(!firebase){ message.textContent='No se pudo conectar con Firebase.'; return; }
+    loginBtn.disabled = true;
+    try{
+      await firebase.signIn(document.getElementById('loginEmail').value.trim(), document.getElementById('loginPassword').value);
+      await checkPermissions();
+      if(state.meta) renderApp(); else renderEmpty();
+    }catch(error){ message.textContent = 'No se pudo iniciar sesión. Verifica correo y contraseña.'; }
+    loginBtn.disabled = false;
+  };
+}
+
+/* ============================= RENDER: APP SHELL ============================= */
+function renderApp(){
+  const root = document.getElementById('appRoot');
+  root.innerHTML = `
+    <div class="view-switch">
+      <button id="tabWeekly" class="${state.view==='weekly'?'active':''}">📋 Turnos semanales</button>
+      ${state.canAdmin ? `<button id="tabAttendance" class="${state.view==='attendance'?'active':''}">◉ Asistencia</button>` : ''}
+      ${state.canViewCoverage ? `<button id="tabCoverage" class="${state.view==='coverage'?'active':''}">📈 Cobertura por franja</button>` : ''}
+      ${state.canWrite ? `<button id="tabConfig" class="${state.view==='config'?'active':''}">⚙ Configuración</button>` : ''}
+    </div>
+    <div id="viewContent"></div>
+  `;
+  document.getElementById('tabWeekly').onclick = ()=>{ state.view='weekly'; renderApp(); };
+  const tabCoverage = document.getElementById('tabCoverage');
+  const tabAttendance = document.getElementById('tabAttendance');
+  const tabConfig = document.getElementById('tabConfig');
+  if(tabCoverage) tabCoverage.onclick = ()=>{ state.view='coverage'; renderApp(); };
+  if(tabAttendance) tabAttendance.onclick = ()=>{ state.view='attendance'; renderApp(); };
+  if(tabConfig) tabConfig.onclick = ()=>{ state.view='config'; renderApp(); };
+  if(state.view==='attendance' && state.canAdmin) renderAttendanceView();
+  else if(state.view==='coverage' && state.canViewCoverage) renderCoverageView();
+  else if(state.view==='config' && state.canWrite) renderConfigView();
+  else { state.view='weekly'; renderWeeklyView(); }
+}
+
+function renderConfigView(){
+  const el = document.getElementById('viewContent');
+  const status = state.meta ? (()=>{ const d=new Date(state.meta.uploadedAt); return '<b>'+state.meta.totalRows+'</b> filas · '+esc(state.meta.fileName)+' · '+d.toLocaleDateString('es-PE')+' '+d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}); })() : 'Sin datos cargados';
+  el.innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>Configuración de datos</h3><span class="sub">Solo usuarios con permiso de administración</span></div>
+      <div style="padding:4px 18px 18px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <label class="btn primary" id="uploadLabel"><input type="file" id="fileInput" accept=".csv" /> ⬆ Cargar CSV</label>
+        <button type="button" id="sheetBtn">↻ Leer Google Sheet</button>
+        <button class="danger" id="deleteBtn" ${state.meta?'':'style="display:none;"'}>🗑 Borrar datos</button>
+      </div>
+        <div style="padding:0 18px 18px;" class="muted">Fuente actual: ${status}.</div>
+        ${state.canAdmin ? '<div class="panel" style="margin:0 18px 18px; box-shadow:none;"><div class="panel-head"><h3>Motivos GTR</h3><span class="sub">Colección gtr_codes</span></div><div style="padding:4px 18px 8px; display:flex; gap:8px; flex-wrap:wrap;"><button type="button" id="seedGtrCodes" class="gtr-add">Cargar motivos predeterminados</button><button type="button" id="addGtrCode" class="gtr-add">+ Nuevo motivo</button><span id="seedGtrCodesMessage" class="muted"></span></div><div id="gtrConfigCodesBody" style="padding:4px 18px 18px;"><span class="muted">Cargando motivos…</span></div></div>' : ''}
+    </div>`;
+      if(state.canAdmin) loadManagedUsers();
+      if(state.canAdmin && window.gtrRenderConfigCodes) window.gtrRenderConfigCodes();
+      const seedButton = document.getElementById('seedGtrCodes');
+      if(seedButton) seedButton.onclick = async ()=>{
+        const message=document.getElementById('seedGtrCodesMessage'); seedButton.disabled=true;
+        try{ const firebase=await getFirebaseModule(); await firebase.seedGtrCodes(); message.textContent='Motivos cargados en Firebase.'; window.gtrRenderConfigCodes && window.gtrRenderConfigCodes(); }
+        catch(error){ message.textContent=error.message||'No se pudieron cargar los motivos.'; }
+        seedButton.disabled=false;
+      };
+      const addCodeButton = document.getElementById('addGtrCode');
+      if(addCodeButton) addCodeButton.onclick = ()=>{
+        const host = document.getElementById('gtrConfigCodesBody');
+        if(!host) return;
+        const row = document.createElement('div');
+        row.className = 'gtr-code-row';
+        row.innerHTML = '<input data-new-code placeholder="Código"><input data-new-description placeholder="Descripción"><label><input type="checkbox" data-new-hours> Afecta horas</label><button type="button" data-save-new-code>Guardar</button>';
+        host.prepend(row);
+        row.querySelector('[data-save-new-code]').onclick = async ()=>{
+          const code = row.querySelector('[data-new-code]').value.trim().toUpperCase();
+          const description = row.querySelector('[data-new-description]').value.trim();
+          const affectsHours = row.querySelector('[data-new-hours]').checked;
+          if(!code || !description){ showToast('Completa código y descripción.', true); return; }
+          try{
+            const firebase = await getFirebaseModule();
+            if(!window.gtrSaveCode) throw new Error('Firebase todavía no está listo. Recarga la página.');
+            if(!window.confirm(`¿Guardar el nuevo motivo ${code}?`)) return;
+            await window.gtrSaveCode({ code, description, affectsHours });
+            row.remove();
+            window.gtrRenderConfigCodes && window.gtrRenderConfigCodes();
+            showToast('Motivo GTR creado.');
+          }catch(error){ showToast(error.message || 'No se pudo crear el motivo.', true); }
+        };
+      };
+}
+
+function renderAttendanceView(){
+  const host = document.getElementById('viewContent');
+  host.innerHTML = `<div id="gtrAttendanceRoot" x-data="gtrApp" x-init="init()" class="gtr-module">
+    <div class="gtr-banner"><div><span class="gtr-kicker">CONTROL OPERATIVO</span><h2>Asistencia & Cobertura</h2><p>Seguimiento diario de turnos, estados y cobertura.</p></div><div class="gtr-connection"><span class="gtr-dot" :class="connected ? 'gtr-online' : 'gtr-pending'"></span><span x-text="connected ? 'Sincronizado' : 'Conectando…'"></span></div></div>
+    <div class="gtr-tabs"><button :class="subview==='daily'?'active':''" @click="subview='daily'">Asistencia diaria</button><button :class="subview==='matrix'?'active':''" @click="subview='matrix'; loadHistory()">Matriz & cuadrante</button><button :class="subview==='intervals'?'active':''" @click="subview='intervals'">Detalle por intervalos</button><button :class="subview==='catalog'?'active':''" @click="subview='catalog'">Configuración</button></div>
+    <div x-show="subview==='daily'">
+      <div class="gtr-filters"><input type="date" x-model="date" @change="rebuild()"><select x-model="country"><option value="ALL">Todos los países</option><template x-for="value in countries"><option x-text="value"></option></template></select><select x-model="segment"><option value="ALL">Todos los segmentos</option><template x-for="value in segments"><option x-text="value"></option></template></select><select x-model="supervisor"><option value="ALL">Todos los supervisores</option><template x-for="value in supervisors"><option x-text="value"></option></template></select><select x-model="statusFilter"><option value="ALL">Todos los estados</option><template x-for="value in statusCodes"><option x-text="value"></option></template></select><input type="search" x-model="query" placeholder="Buscar nombre o legajo…"><button class="gtr-clear" @click="clearFilters()">Limpiar filtros</button></div>
+      <div class="gtr-kpis"><template x-for="item in kpis"><div class="gtr-kpi"><b x-text="item.value"></b><span x-text="item.label"></span></div></template></div>
+      <div class="gtr-table-wrap"><table class="gtr-table"><thead><tr><th>Fecha</th><th>Agente / Legajo</th><th>Supervisor</th><th>Horario</th><th>Estado GTR</th><th>Update supervisor</th><th>Observación GTR</th><th><button class="gtr-save-all" @click="saveAll()" :disabled="!pendingRows.length" x-text="pendingRows.length ? 'Guardar todos ('+pendingRows.length+')' : 'Sin cambios'"></button></th></tr></thead><tbody><template x-for="row in filteredRows" :key="row.key"><tr><td x-text="row.fecha"></td><td><b x-text="row.nombre"></b><small x-text="row.legajo"></small></td><td x-text="shortSupervisor(row.equipo)"></td><td><span class="gtr-shift-badge" x-text="row.horario"></span></td><td><select class="gtr-status" :class="statusClass(row.status)" x-model="row.status"><option x-show="!statusCodes.length" disabled>Cargando motivos...</option><template x-for="value in statusCodes"><option :value="value" x-text="value"></option></template></select></td><td><select x-model="row.supervisorUpdate"><option value="">Sin cambio</option><template x-for="value in supervisors"><option x-text="value"></option></template></select></td><td><input class="gtr-note" x-model="row.note" placeholder="Agregar observación"></td><td><button class="gtr-save" @click="saveRow(row)">Guardar</button></td></tr></template></tbody></table></div>
+    </div>
+    <div x-show="subview==='matrix'"><div class="gtr-month-banner"><h3 x-text="monthLabel"></h3><div class="gtr-month-stats"><span x-text="monthStats.total+' programados'"></span><span x-text="monthStats.absent+' ausencias'"></span><span x-text="monthStats.coverage+'% cobertura'"></span></div></div><div class="gtr-table-wrap"><table class="gtr-table gtr-matrix"><thead><tr><th class="sticky-left">Agente</th><template x-for="day in monthDays"><th x-text="day.day"></th></template></tr></thead><tbody><template x-for="person in matrixRows"><tr><td class="sticky-left"><b x-text="person.nombre"></b><small x-text="person.legajo"></small></td><template x-for="cell in person.days"><td><span class="gtr-code" :class="statusClass(cell.status)" x-text="cell.status"></span></td></template></tr></template></tbody></table></div></div>
+    <div x-show="subview==='intervals'"><div class="gtr-filters"><select x-model="intervalDate"><template x-for="day in availableDates"><option :value="day" x-text="day"></option></template></select><button class="gtr-clear" @click="intervalDate=date; rebuild()">Día vigente</button></div><div class="gtr-table-wrap"><table class="gtr-table"><thead><tr><th>Intervalo</th><th>Programados</th><th>Conectados</th><th>Tardanzas</th><th>Ausentes</th><th>% Cobertura</th><th>% Ausentismo</th><th>Barra</th></tr></thead><tbody><template x-for="item in intervalRows"><tr><td x-text="item.label"></td><td x-text="item.programados"></td><td x-text="item.connected"></td><td x-text="item.late"></td><td x-text="item.absent"></td><td x-text="item.coverage+'%'"></td><td x-text="item.absence+'%'"></td><td><div class="gtr-bar"><i :style="'width:'+item.coverage+'%'" ></i></div></td></tr></template></tbody></table></div></div>
+    <div x-show="subview==='catalog'"><div class="gtr-catalog"><h3>Catálogo de motivos GTR</h3><p>Los motivos se administran desde la pestaña Configuración principal.</p></div></div>
+  </div>`;
+  if(window.gtrInitAttendance) window.gtrInitAttendance();
+}
+
+async function loadManagedUsers(){
+  const host = document.getElementById('managedUsersBody');
+  if(!host) return;
+  try{
+    const firebase = await getFirebaseModule();
+    const result = await firebase.listManagedUsers();
+    const users = result.users || [];
+    host.innerHTML = users.length ? `<div class="tablewrap"><table><thead><tr><th>Usuario</th><th>Nombre</th><th>Roles</th><th>Correo verificado</th></tr></thead><tbody>${users.map(user=>`<tr><td>${esc(user.email)}</td><td>${esc(user.displayName||'—')}</td><td>${esc(user.roles.length ? user.roles.join(', ') : 'Sin roles')}</td><td>${user.emailVerified?'Sí':'No'}</td></tr>`).join('')}</tbody></table></div>` : '<span class="muted">No hay usuarios activos.</span>';
+  }catch(error){
+    host.innerHTML = `<span class="muted">No se pudo cargar la lista de usuarios: ${esc(error.message||'error de permisos')}.</span>`;
+  }
+}
+
+function filterOptionsHtml(){
+  const eqOpts = state.equipos.map(e=>`<option value="${esc(e)}" ${state.equipoFilter===e?'selected':''}>${esc(e)}</option>`).join('');
+  return { eqOpts };
+}
+
+function matchesFilters(rec){
+  if(state.equipoFilter!=='ALL' && rec.equipo !== state.equipoFilter) return false;
+  if(state.skillFilters.length){
+    const recSkills = (rec.skills||'').split(';').map(s=>s.trim()).filter(Boolean);
+    const hit = recSkills.some(s=> state.skillFilters.includes(s));
+    if(!hit) return false;
+  }
+  if(state.search){
+    const q = state.search.toLowerCase();
+    const hay = (rec.legajo+' '+rec.nombre).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+/* Multi-select "segmento" dropdown: a button that shows the count of
+   selected segmentos and toggles a checkbox panel. `onChangeCb` is
+   called (with no args) after every toggle so the caller can re-render. */
+function renderSkillMultiSelect(containerId, onChangeCb){
+  const host = document.getElementById(containerId);
+  if(!host) return;
+  const label = state.skillFilters.length===0
+    ? 'Todos los segmentos'
+    : state.skillFilters.length===1
+      ? state.skillFilters[0]
+      : state.skillFilters.length+' segmentos';
+  host.innerHTML = `
+    <div class="msel">
+      <button type="button" class="msel-btn">${esc(label)} <span class="chev">▾</span></button>
+      <div class="msel-panel" style="display:${state.skillMenuOpen?'block':'none'}">
+        <div class="msel-item msel-all"><label><input type="checkbox" ${state.skillFilters.length===0?'checked':''} data-all="1" /> Todos los segmentos</label></div>
+        ${state.skills.map(s=>`<div class="msel-item"><label><input type="checkbox" value="${esc(s)}" ${state.skillFilters.includes(s)?'checked':''} /> ${esc(s)}</label></div>`).join('')}
+      </div>
+    </div>
+  `;
+  const btn = host.querySelector('.msel-btn');
+  const panel = host.querySelector('.msel-panel');
+  btn.onclick = (e)=>{ e.stopPropagation(); state.skillMenuOpen = !state.skillMenuOpen; panel.style.display = state.skillMenuOpen?'block':'none'; };
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.onchange = (e)=>{
+      e.stopPropagation();
+      if(cb.dataset.all){ state.skillFilters = []; }
+      else {
+        const v = cb.value;
+        if(cb.checked){ if(!state.skillFilters.includes(v)) state.skillFilters.push(v); }
+        else { state.skillFilters = state.skillFilters.filter(s=>s!==v); }
+      }
+      onChangeCb();
+    };
+  });
+  document.addEventListener('click', function closeOnce(ev){
+    if(!host.contains(ev.target)){ state.skillMenuOpen=false; panel.style.display='none'; document.removeEventListener('click', closeOnce); }
+  });
+}
+
+/* ============================= VIEW 1: WEEKLY ============================= */
+function renderWeeklyView(){
+  const el = document.getElementById('viewContent');
+  const { eqOpts } = filterOptionsHtml();
+  const weeks = availableWeeks();
+  const weekDates = selectedWeekDates();
+  const weekOptions = weeks.length>1 ? `<select id="weekSelect" aria-label="Seleccionar semana">${weeks.slice().reverse().map(([key,dates],index)=>`<option value="${key}" ${key===state.selectedWeek?'selected':''}>${index===0?'Última semana · ':''}${fmtDateShort(dates[0])}–${fmtDateShort(dates[dates.length-1])}</option>`).join('')}</select>` : '';
+  const legajos = Array.from(new Map(Array.from(state.roster.values()).filter(rec=>weekDates.includes(rec.fecha)).map(rec=>[rec.legajo, rec.nombre])).entries()).sort((a,b)=>a[0].localeCompare(b[0]));
+
+  const dayChips = ['ALL', ...weekDates, 'SUMMARY'].map(dk=>{
+    const active = state.weekDayFilter===dk ? 'active' : '';
+    let label, sub;
+    if(dk==='ALL'){ label='Semana completa'; sub=weekDates.length+' días'; }
+    else if(dk==='SUMMARY'){ label='Resumen semanal'; sub='Total por persona'; }
+    else { label = weekdayShort(dk); sub = fmtDateShort(dk); }
+    return `<div class="daychip ${active}" data-day="${dk}" aria-pressed="${active?'true':'false'}">${label}<small>${sub}</small></div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="filterbar">
+      ${weekOptions}
+      <div class="legajo-search"><input type="text" id="searchInput" placeholder="Buscar nombre o legajo…" value="${esc(state.search)}" autocomplete="off" /><div id="legajoSuggestions" class="legajo-suggestions" hidden></div></div>
+      <select id="equipoSelect"><option value="ALL">Todos los supervisores</option>${eqOpts}</select>
+      <div id="skillMsel"></div>
+      <button type="button" class="clear-filters" id="clearWeeklyFilters">Limpiar filtros</button>
+    </div>
+    <div class="daychips">${dayChips}</div>
+    <div id="weeklyBody"></div>
+  `;
+  el.querySelectorAll('.daychip').forEach(c=> c.onclick = ()=>{ state.weekDayFilter = c.dataset.day; renderWeeklyView(); });
+  const weekSelect = document.getElementById('weekSelect');
+  if(weekSelect) weekSelect.onchange = e=>{ state.selectedWeek=e.target.value; state.weekDayFilter='ALL'; renderWeeklyView(); };
+  document.getElementById('searchInput').oninput = (e)=>{
+    state.search = e.target.value;
+    state.selectedLegajo = 'ALL';
+    renderLegajoSuggestions(legajos);
+    renderWeeklyBody();
+  };
+  renderLegajoSuggestions(legajos);
+  document.getElementById('equipoSelect').onchange = (e)=>{ state.equipoFilter = e.target.value; renderWeeklyBody(); };
+  document.getElementById('clearWeeklyFilters').onclick = ()=>clearFilters('weekly');
+  function onSkillChange(){ renderSkillMultiSelect('skillMsel', onSkillChange); renderWeeklyBody(); }
+  renderSkillMultiSelect('skillMsel', onSkillChange);
+  renderWeeklyOverview();
+}
+
+function renderLegajoSuggestions(legajos){
+  const input = document.getElementById('searchInput');
+  const host = document.getElementById('legajoSuggestions');
+  if(!input || !host) return;
+  const query = state.search.trim().toLowerCase();
+  if(!query){ host.hidden=true; return; }
+  const matches = legajos.filter(([legajo,nombre])=>(legajo+' '+nombre).toLowerCase().includes(query)).slice(0,30);
+  host.innerHTML = matches.length ? matches.map(([legajo,nombre])=>`<button type="button" class="legajo-suggestion" data-legajo="${esc(legajo)}"><b>${esc(legajo)}</b> · ${esc(nombre)}</button>`).join('') : '<div class="muted" style="padding:8px;">Sin coincidencias</div>';
+  host.hidden=false;
+  host.querySelectorAll('[data-legajo]').forEach(button=>button.onclick=()=>{
+    state.selectedLegajo=button.dataset.legajo;
+    state.search=button.dataset.legajo;
+    input.value=button.textContent.replace(/^\s*/, '').trim();
+    host.hidden=true;
+    renderWeeklyBody();
+  });
+}
+
+function renderWeeklyBody(){
+  renderWeeklyOverview();
+}
+
+function clearFilters(view){
+  state.search = '';
+  state.equipoFilter = 'ALL';
+  state.skillFilters = [];
+  state.skillMenuOpen = false;
+  state.selectedLegajo = 'ALL';
+  state.weekDayFilter = 'ALL';
+  if(view==='coverage'){
+    state.covDayFilter = 'AVG';
+    renderCoverageView();
+  } else {
+    renderWeeklyView();
+  }
+}
+
+function renderWeeklyOverview(){
+  const host = document.getElementById('weeklyBody');
+  if(!host) return;
+
+  if(state.weekDayFilter === 'SUMMARY'){
+    host.innerHTML = renderWeeklySummary();
+    return;
+  }
+  if(state.selectedLegajo !== 'ALL'){
+    renderWeeklyGantt(host);
+    return;
+  }
+  renderWeeklyDetailBody('weeklyBody');
+}
+
+function renderWeeklyGantt(host){
+  const weekDates = selectedWeekDates();
+  const records = Array.from(state.roster.values()).filter(rec=>rec.legajo===state.selectedLegajo && weekDates.includes(rec.fecha) && matchesFilters(rec));
+  const employee = records[0];
+  if(!employee){ host.innerHTML='<div class="panel"><div style="padding:24px;" class="muted">No hay turnos para este legajo con los filtros actuales.</div></div>'; return; }
+  const localMinute = (ms, dateKey)=>Math.round((ms-parseDateStr(dateKey))/60000);
+  const localStarts = records.filter(rec=>rec.ingOp!=null).map(rec=>localMinute(rec.ingOp,rec.fecha));
+  const localEnds = records.filter(rec=>rec.salOp!=null).map(rec=>localMinute(rec.salOp,rec.fecha));
+  const axisStart = Math.floor((Math.min(...localStarts)-60)/60)*60;
+  const axisEnd = Math.ceil((Math.max(...localEnds)+60)/60)*60;
+  const axisRange = Math.max(60,axisEnd-axisStart);
+  const axisHours = Math.ceil(axisRange/60);
+  const axis = Array.from({length:axisHours+1},(_,index)=>{
+    const minute=axisStart+index*60;
+    return `<span style="top:${(minute-axisStart)/axisRange*100}%">${String(Math.floor(((minute%1440)+1440)%1440)/60).padStart(2,'0')}:00</span>`;
+  }).join('');
+  const columns = weekDates.map(dateKey=>{
+    const shifts = records.filter(rec=>rec.fecha===dateKey && rec.ingOp!=null && rec.salOp!=null);
+    const bars = shifts.map(rec=>{
+      const det = state.detail.get(rec.legajo+'|'+rec.fecha) || {almuerzo:null,breaks:[]};
+      const startMinute = localMinute(rec.ingOp,dateKey);
+      const endMinute = localMinute(rec.salOp,dateKey);
+      const top = Math.max(0,(startMinute-axisStart)/axisRange*100);
+      const height = Math.max(.45,(endMinute-startMinute)/axisRange*100);
+      const overlays = [];
+      if(det.almuerzo && det.almuerzo.ini!=null && det.almuerzo.fin!=null){
+        const ini=localMinute(det.almuerzo.ini,dateKey), fin=localMinute(det.almuerzo.fin,dateKey);
+        const lunchLabel = `${fmtTime(det.almuerzo.ini)}–${fmtTime(det.almuerzo.fin)}`;
+        if(fin>ini) overlays.push(`<span class="gantt-lunch" style="top:${(ini-startMinute)/(endMinute-startMinute)*100}%;height:${(fin-ini)/(endMinute-startMinute)*100}%" title="Almuerzo ${fmtTime(det.almuerzo.ini)}–${fmtTime(det.almuerzo.fin)}">${lunchLabel}</span>`);
+      }
+      for(const brk of det.breaks){
+        if(brk.ini==null||brk.fin==null) continue;
+        const ini=localMinute(brk.ini,dateKey), fin=localMinute(brk.fin,dateKey);
+        const breakLabel = `${fmtTime(brk.ini)}–${fmtTime(brk.fin)}`;
+        if(fin>ini) overlays.push(`<span class="gantt-break" style="top:${(ini-startMinute)/(endMinute-startMinute)*100}%;height:${(fin-ini)/(endMinute-startMinute)*100}%" title="Break ${fmtTime(brk.ini)}–${fmtTime(brk.fin)}">${breakLabel}</span>`);
+      }
+      return `<div class="gantt-shift" style="top:${top}%;height:${height}%" title="${fmtTime(rec.ingOp)}–${fmtTime(rec.salOp)}"><span class="gantt-shift-label">${fmtTime(rec.ingOp)}–${fmtTime(rec.salOp)}</span>${overlays.join('')}</div>`;
+    }).join('');
+    return `<div class="gantt-track" style="background:repeating-linear-gradient(to bottom, transparent 0, transparent ${100/axisHours}%, var(--border) ${100/axisHours}%, transparent calc(${100/axisHours}% + 1px))">${bars}</div>`;
+  }).join('');
+  const dayHeaders = weekDates.map(dateKey=>`<div class="gantt-day">${weekdayShort(dateKey)}<small>${fmtDateShort(dateKey)}</small></div>`).join('');
+  host.innerHTML = `<div class="panel"><div class="panel-head"><h3>Semana de ${esc(employee.nombre)}</h3><span class="sub">Legajo ${esc(employee.legajo)} · Supervisor ${esc(employee.equipo||'—')} · ${String(Math.floor(((axisStart%1440)+1440)%1440)/60).padStart(2,'0')}:00–${String(Math.floor(((axisEnd%1440)+1440)%1440)/60).padStart(2,'0')}:00</span></div><div class="gantt-wrap"><div class="gantt"><div class="gantt-corner"></div>${dayHeaders}<div class="gantt-axis">${axis}</div>${columns}</div></div><div class="gantt-legend"><span><i style="background:var(--shift)"></i>Turno operativo</span><span><i style="background:var(--lunch)"></i>Refrigerio</span><span><i style="background:var(--break)"></i>Break</span></div></div><div class="weekly-gantt-detail" id="selectedWeeklyDetail"></div>`;
+  renderWeeklyDetailBody('selectedWeeklyDetail');
+}
+
+function renderWeeklyDetailBody(targetId='weeklyBody'){
+  const host = document.getElementById(targetId);
+  if(!host) return;
+
+  const weekDates = selectedWeekDates();
+  const dayList = state.weekDayFilter==='ALL' || state.weekDayFilter==='SUMMARY' ? weekDates : [state.weekDayFilter];
+  const nBreaks = state.maxBreaks;
+
+  // gather rows: one per legajo+fecha with detail (almuerzo/break) present
+  let entries = [];
+  for(const dk of dayList){
+    for(const [key, rec] of state.roster){
+      if(rec.fecha !== dk) continue;
+      const det = state.detail.get(key) || { almuerzo:null, breaks:[] };
+      if(!matchesFilters(rec)) continue;
+      entries.push({ rec, det });
+    }
+  }
+  entries.sort((a,b)=> (a.rec.legajo).localeCompare(b.rec.legajo) || (a.rec.fecha).localeCompare(b.rec.fecha) || (a.rec.ingOp||0)-(b.rec.ingOp||0));
+
+  let breakHeaders = '';
+  for(let i=0;i<nBreaks;i++){
+    breakHeaders += `<th>Break ${i+1} inicio</th><th>Break ${i+1} fin</th>`;
+  }
+
+  const rowsHtml = entries.map(({rec,det})=>{
+    let breakCells = '';
+    for(let i=0;i<nBreaks;i++){
+      const b = det.breaks[i];
+      breakCells += `<td class="num">${b?fmtTime(b.ini):'—'}</td><td class="num">${b?fmtTime(b.fin):'—'}</td>`;
+    }
+    const net = netHoursForShift(rec, det);
+    const selectedDayClass = state.weekDayFilter!=='ALL' && state.weekDayFilter!=='SUMMARY' && state.weekDayFilter===rec.fecha ? 'weekly-selected-day' : '';
+    return `<tr class="${selectedDayClass}">
+      <td>${esc(rec.legajo)}</td>
+      <td class="name">${esc(rec.nombre)}</td>
+      <td>${esc(rec.equipo||'—')}</td>
+      <td>${esc((rec.skills||'—').split(';')[0])}</td>
+      <td>${weekdayShort(rec.fecha)} ${fmtDateShort(rec.fecha)}</td>
+      <td class="num">${fmtTime(rec.ingOp)}</td>
+      <td class="num">${fmtTime(rec.salOp)}</td>
+      <td class="num">${det.almuerzo?fmtTime(det.almuerzo.ini):'—'}</td>
+      <td class="num">${det.almuerzo?fmtTime(det.almuerzo.fin):'—'}</td>
+      ${breakCells}
+      <td class="num"><b>${fmtHours(net)}</b></td>
+    </tr>`;
+  }).join('');
+
+  host.innerHTML = `
+    <div class="panel weekly-detail-panel">
+      <div class="panel-head">
+        <h3>Detalle de turnos ${state.weekDayFilter==='ALL'?'— semana completa':'— '+weekdayLabel(state.weekDayFilter)+' '+fmtDateShort(state.weekDayFilter)}</h3>
+        <span class="sub">${entries.length} registro(s)${state.weekDayFilter!=='ALL'?' · día seleccionado':''}</span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Legajo</th><th>Nombre</th><th>Supervisor</th><th>Segmento</th><th>Día</th>
+            <th>Ingreso Operativo</th><th>Salida Operativa</th>
+            <th>Almuerzo inicio</th><th>Almuerzo fin</th>
+            ${breakHeaders}
+            <th>Hrs netas</th>
+          </tr></thead>
+          <tbody>${rowsHtml || `<tr><td colspan="${10+nBreaks*2}" class="muted">Sin registros para este filtro.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderWeeklySummary(){
+  // group by legajo across the whole week (independent of weekDayFilter — always full week)
+  const byLegajo = new Map();
+  const weekDates = new Set(selectedWeekDates());
+  for(const [key, rec] of state.roster){
+    if(!weekDates.has(rec.fecha)) continue;
+    if(!matchesFilters(rec)) continue;
+    const det = state.detail.get(key) || { almuerzo:null, breaks:[] };
+    const net = netHoursForShift(rec, det);
+    if(net==null) continue;
+    if(!byLegajo.has(rec.legajo)) byLegajo.set(rec.legajo, { legajo:rec.legajo, nombre:rec.nombre, equipo:rec.equipo, skills:rec.skills, total:0, dias:0 });
+    const agg = byLegajo.get(rec.legajo);
+    agg.total += net; agg.dias += 1;
+  }
+  const list = Array.from(byLegajo.values()).sort((a,b)=> a.legajo.localeCompare(b.legajo));
+  const rows = list.map(a=> `<tr>
+      <td>${esc(a.legajo)}</td>
+      <td class="name">${esc(a.nombre)}</td>
+      <td>${esc(a.equipo||'—')}</td>
+      <td>${esc((a.skills||'—').split(';')[0])}</td>
+      <td class="num">${a.dias}</td>
+      <td class="num"><b>${fmtHours(a.total)}</b></td>
+    </tr>`).join('');
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Resumen semanal por colaborador</h3>
+        <span class="sub">Total de horas netas de la semana</span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Legajo</th><th>Nombre</th><th>Supervisor</th><th>Segmento</th><th class="num">Días</th><th class="num">Total horas semana</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="6" class="muted">Sin registros para este filtro.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================= VIEW 2: COVERAGE ============================= */
+function coverageAtInstant(t, tEnd, shifts){
+  let programados=0, almuerzo=0, breakC=0;
+  for(const {rec,det} of shifts){
+    const inShift = t < rec.salOp && tEnd > rec.ingOp;
+    if(!inShift) continue;
+    programados++;
+    if(det.almuerzo && det.almuerzo.ini!=null && det.almuerzo.fin!=null && t < det.almuerzo.fin && tEnd > det.almuerzo.ini){ almuerzo++; continue; }
+    let onBreak = false;
+    for(const b of det.breaks){ if(b.ini!=null && b.fin!=null && t < b.fin && tEnd > b.ini){ onBreak = true; break; } }
+    if(onBreak) breakC++;
+  }
+  const netos = Math.max(0, programados - almuerzo - breakC);
+  return { programados, almuerzo, breakC, netos };
+}
+
+function computeCoverage(fechaKey, stepMin){
+  const [year, month, day] = fechaKey.split('-').map(Number);
+  const minStart = Date.UTC(year, month-1, day, 0, 0, 0);
+  const maxEnd = minStart + 86400000;
+  const shifts = [];
+  for(const [key, rec] of state.roster){
+    if(!matchesFilters(rec)) continue;
+    if(rec.ingOp==null || rec.salOp==null) continue;
+    if(rec.ingOp >= maxEnd || rec.salOp <= minStart) continue;
+    const det = state.detail.get(key) || { almuerzo:null, breaks:[] };
+    shifts.push({ rec, det });
+  }
+  if(!shifts.length) return null;
+
+  const STEP = stepMin*60000;
+  const intervals = [];
+  for(let t=minStart; t<maxEnd; t+=STEP){
+    intervals.push({ t, tEnd:t+STEP, ...coverageAtInstant(t, t+STEP, shifts) });
+  }
+  return { intervals, totalShifts: shifts.length };
+}
+
+/* Promedio semanal: recorre la línea de tiempo continua (real, sin
+   "resetear" a medianoche) desde el primer día hasta el último, calcula
+   la cobertura en cada franja, y promedia por hora-del-día a través de
+   los N días del set de datos. Así un turno nocturno que cruza la
+   medianoche se cuenta en la franja real en la que ocurre. */
+function computeWeeklyAverageCoverage(stepMin){
+  const shifts = [];
+  const weekDates = new Set(selectedWeekDates());
+  for(const [key, rec] of state.roster){
+    if(!weekDates.has(rec.fecha)) continue;
+    if(!matchesFilters(rec)) continue;
+    if(rec.ingOp==null || rec.salOp==null) continue;
+    const det = state.detail.get(key) || { almuerzo:null, breaks:[] };
+    shifts.push({ rec, det });
+  }
+  if(!shifts.length || !state.dates.length) return null;
+
+  const STEP = stepMin*60000;
+  const activeDays = new Set(weekDates);
+  for(const {rec} of shifts){
+    if(rec.salOp!=null) activeDays.add(dateKeyFromMs(rec.salOp));
+  }
+  const nDays = activeDays.size;
+
+  const slotsPerDay = Math.round(86400000/STEP);
+  const buckets = new Array(slotsPerDay).fill(null).map(()=>({ programados:0, almuerzo:0, breakC:0, netos:0, n:0 }));
+
+  for(const dateKey of activeDays){
+    const [year,month,day] = dateKey.split('-').map(Number);
+    const dayStart = Date.UTC(year, month-1, day, 0, 0, 0);
+    for(let t=dayStart; t<dayStart+86400000; t+=STEP){
+      const cov = coverageAtInstant(t, t+STEP, shifts);
+      const idx = Math.round((t-dayStart)/STEP) % slotsPerDay;
+      const b = buckets[idx];
+      b.programados += cov.programados; b.almuerzo += cov.almuerzo; b.breakC += cov.breakC; b.netos += cov.netos; b.n++;
+    }
+  }
+
+  const intervals = buckets.map((b,idx)=>{
+    const t = idx*STEP; // tiempo-de-día en ms, usado solo para formatear la hora
+    const n = b.n || 1;
+    return {
+      t, tEnd: t+STEP,
+      programados: b.programados/n, almuerzo: b.almuerzo/n, breakC: b.breakC/n, netos: b.netos/n,
+      isAvg: true
+    };
+  });
+  return { intervals, totalShifts: shifts.length, nDays };
+}
+
+function collapseIntervalsByClock(intervals){
+  const groups = new Map();
+  for(const item of intervals){
+    const clockMs = ((item.t % 86400000) + 86400000) % 86400000;
+    const key = clockMs;
+    if(!groups.has(key)) groups.set(key, { t:clockMs, tEnd:clockMs+(item.tEnd-item.t), programados:0, almuerzo:0, breakC:0, netos:0, count:0 });
+    const group = groups.get(key);
+    group.programados += item.programados;
+    group.almuerzo += item.almuerzo;
+    group.breakC += item.breakC;
+    group.netos += item.netos;
+    group.count++;
+  }
+  return Array.from(groups.values()).sort((a,b)=>a.t-b.t).map(group=>({
+    ...group,
+    programados:group.programados/group.count,
+    almuerzo:group.almuerzo/group.count,
+    breakC:group.breakC/group.count,
+    netos:group.netos/group.count
+  }));
+}
+
+function sortIntervalsFromMidnight(intervals){
+  return intervals.slice().sort((a,b)=>{
+    const aClock = ((a.t % 86400000) + 86400000) % 86400000;
+    const bClock = ((b.t % 86400000) + 86400000) % 86400000;
+    return aClock-bClock;
+  });
+}
+
+function findPeaksAndMin(intervals){
+  function extremeOf(field, mode){
+    let val = mode==='max' ? -Infinity : Infinity;
+    for(const i of intervals){ if(mode==='max' ? i[field]>val : i[field]<val) val = i[field]; }
+    const times = intervals.filter(i=> i[field]===val).map(i=>i.t);
+    return { val, times };
+  }
+  return {
+    progPeak: extremeOf('programados','max'),
+    almPeak: extremeOf('almuerzo','max'),
+    brkPeak: extremeOf('breakC','max'),
+    netMin: extremeOf('netos','min'),
+  };
+}
+function timesLabel(times, roundFn){
+  if(!times.length) return '—';
+  const shown = times.slice(0,3).map(t=> fmtTime(t));
+  const extra = times.length>3 ? ' +'+(times.length-3)+' franja(s) más' : '';
+  return shown.join(', ')+extra;
+}
+
+function renderCoverageView(){
+  const el = document.getElementById('viewContent');
+  const { eqOpts } = filterOptionsHtml();
+  const weeks = availableWeeks();
+  const weekDates = selectedWeekDates();
+  if(!state.covDayFilter || !weekDates.includes(state.covDayFilter)) state.covDayFilter = 'AVG';
+  const weekOptions = weeks.length>1 ? `<select id="coverageWeekSelect" aria-label="Seleccionar semana">${weeks.slice().reverse().map(([key,dates],index)=>`<option value="${key}" ${key===state.selectedWeek?'selected':''}>${index===0?'Última semana · ':''}${fmtDateShort(dates[0])}–${fmtDateShort(dates[dates.length-1])}</option>`).join('')}</select>` : '';
+
+  const dayChips = ['AVG', ...weekDates].map(dk=>{
+    const active = state.covDayFilter===dk ? 'active' : '';
+    if(dk==='AVG') return `<div class="daychip ${active}" data-day="AVG">Semana<small>Promedio</small></div>`;
+    return `<div class="daychip ${active}" data-day="${dk}">${weekdayShort(dk)}<small>${fmtDateShort(dk)}</small></div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="filterbar">
+      ${weekOptions}
+      <input type="text" id="searchInput2" placeholder="Buscar por legajo o nombre…" value="${esc(state.search)}" />
+      <select id="equipoSelect2"><option value="ALL">Todos los supervisores</option>${eqOpts}</select>
+      <div id="skillMsel2"></div>
+      <div class="gran-toggle">
+        <button type="button" data-g="30" class="${state.granularity===30?'active':''}">Intervalos 30 min</button>
+        <button type="button" data-g="60" class="${state.granularity===60?'active':''}">Intervalos 1 hora</button>
+      </div>
+      <button type="button" class="clear-filters" id="clearCoverageFilters">Limpiar filtros</button>
+    </div>
+    <div class="daychips">${dayChips}</div>
+    <div id="coverageBody"></div>
+  `;
+  el.querySelectorAll('.daychip').forEach(c=> c.onclick = ()=>{ state.covDayFilter = c.dataset.day; renderCoverageView(); });
+  const coverageWeekSelect = document.getElementById('coverageWeekSelect');
+  if(coverageWeekSelect) coverageWeekSelect.onchange = e=>{ state.selectedWeek=e.target.value; state.covDayFilter='AVG'; renderCoverageView(); };
+  document.getElementById('searchInput2').oninput = (e)=>{ state.search = e.target.value; renderCoverageBody(); };
+  document.getElementById('equipoSelect2').onchange = (e)=>{ state.equipoFilter = e.target.value; renderCoverageBody(); };
+  document.getElementById('clearCoverageFilters').onclick = ()=>clearFilters('coverage');
+  el.querySelectorAll('.gran-toggle button').forEach(b=> b.onclick = ()=>{ state.granularity = +b.dataset.g; renderCoverageView(); });
+  function onSkillChange(){ renderSkillMultiSelect('skillMsel2', onSkillChange); renderCoverageBody(); }
+  renderSkillMultiSelect('skillMsel2', onSkillChange);
+  renderCoverageBody();
+}
+
+function renderCoverageBody(){
+  const host = document.getElementById('coverageBody');
+  const dk = state.covDayFilter;
+  const isAvg = dk === 'AVG';
+  const data = isAvg ? computeWeeklyAverageCoverage(state.granularity) : (dk ? computeCoverage(dk, state.granularity) : null);
+
+  if(!data){
+    host.innerHTML = `<div class="panel"><div class="panel-head"><h3>Cobertura</h3></div><div style="padding:30px 18px;" class="muted">No hay turnos para este período con los filtros seleccionados.</div></div>`;
+    return;
+  }
+
+  const intervals = sortIntervalsFromMidnight(isAvg ? data.intervals : collapseIntervalsByClock(data.intervals));
+  const r = v => isAvg ? Math.round(v*10)/10 : v;
+  const peaks = findPeaksAndMin(intervals);
+  const avgNetos = intervals.reduce((a,i)=>a+i.netos,0)/intervals.length;
+  const totalProgramados = intervals.reduce((a,i)=>a+i.programados,0);
+  const totalNetos = intervals.reduce((a,i)=>a+i.netos,0);
+  const eficiencia = totalProgramados ? (totalNetos/totalProgramados)*100 : 0;
+  const gapIntervals = isAvg ? [] : intervals.filter(i=> i.programados>0 && i.netos===0);
+  const selectedSegments = state.skillFilters.length ? state.skillFilters.join(', ') : 'Todos';
+
+  const kpis = `
+    <div class="kpis">
+      <div class="kpi"><div class="n">${data.totalShifts}</div><div class="l">${isAvg?'Colaboradores en la semana':'Colaboradores programados'}</div></div>
+      <div class="kpi"><div class="n">${r(peaks.progPeak.val)}</div><div class="l">Pico de programados</div></div>
+      <div class="kpi"><div class="n">${avgNetos.toFixed(1)}</div><div class="l">Promedio de operativos netos</div></div>
+      <div class="kpi"><div class="n" style="color:${peaks.netMin.val<=0?'var(--gap)':'var(--text)'}">${r(peaks.netMin.val)}</div><div class="l">Mínimo de operativos netos</div></div>
+      <div class="kpi"><div class="n">${eficiencia.toFixed(1)}%</div><div class="l">Eficiencia cobertura neta / programados</div></div>
+    </div>
+  `;
+
+  const rows = data.intervals.map(i=>{
+    const gapRow = (!isAvg && i.programados>0 && i.netos===0) ? 'gap-row' : '';
+    const distribution = totalNetos ? (i.netos/totalNetos)*100 : 0;
+    const heat = (value, max, color) => {
+      const intensity = max ? Math.max(.06, Math.min(.42, value/max*.42)) : .06;
+      return `background:color-mix(in srgb, ${color} ${Math.round(intensity*100)}%, var(--panel));`;
+    };
+    return `<tr class="${gapRow}">
+      <td>${fmtTime(i.t)}–${fmtTime(i.tEnd)}</td>
+      <td class="segment-cell">${esc(selectedSegments)}</td>
+      <td class="num heat-cell" style="${heat(i.programados, peaks.progPeak.val, 'var(--info)')}"><span class="badge info">${r(i.programados)}</span></td>
+      <td class="num heat-cell" style="${heat(i.almuerzo, peaks.almPeak.val, 'var(--warn)')}">${r(i.almuerzo)}</td>
+      <td class="num heat-cell" style="${heat(i.breakC, peaks.brkPeak.val, 'var(--gap)')}">${r(i.breakC)}</td>
+      <td class="num heat-cell" style="${heat(i.netos, Math.max(1, peaks.progPeak.val), 'var(--live)')}"><b>${r(i.netos)}</b></td>
+      <td class="num heat-cell" style="${heat(distribution, 100, 'var(--live)')}">${distribution.toFixed(1)}%<span class="distribution">del total neto</span></td>
+    </tr>`;
+  }).join('');
+
+  const alertItems = [
+    peaks.progPeak.val > 0 ? `<div class="alert-item"><span class="t">${timesLabel(peaks.progPeak.times)}</span><span>Hora pico de programados: ${r(peaks.progPeak.val)}.</span></div>` : '',
+    peaks.almPeak.val > 0 ? `<div class="alert-item"><span class="t">${timesLabel(peaks.almPeak.times)}</span><span>Hora pico de almuerzos: ${r(peaks.almPeak.val)}.</span></div>` : '',
+    peaks.brkPeak.val > 0 ? `<div class="alert-item"><span class="t">${timesLabel(peaks.brkPeak.times)}</span><span>Hora pico de breaks: ${r(peaks.brkPeak.val)}.</span></div>` : '',
+    `<div class="alert-item"><span class="t">${timesLabel(peaks.netMin.times)}</span><span>Mínimo de operativos netos: ${r(peaks.netMin.val)}.</span></div>`
+  ].join('');
+  const gapAlerts = gapIntervals.map(i=> `<div class="alert-item"><span class="t">${fmtTime(i.t)}</span><span>Cobertura en cero: ${i.programados} programado(s), todos en almuerzo o break.</span></div>`).join('');
+  const alertsHtml = alertItems + gapAlerts;
+
+  const peakStats = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="l">Hora pico de programados</div><div class="v">${r(peaks.progPeak.val)}<small>${timesLabel(peaks.progPeak.times)}</small></div></div>
+      <div class="stat-card"><div class="l">Hora pico de almuerzo</div><div class="v">${r(peaks.almPeak.val)}<small>${timesLabel(peaks.almPeak.times)}</small></div></div>
+      <div class="stat-card"><div class="l">Hora pico de break</div><div class="v">${r(peaks.brkPeak.val)}<small>${timesLabel(peaks.brkPeak.times)}</small></div></div>
+      <div class="stat-card"><div class="l">Mínimo de operativos netos</div><div class="v" style="color:${peaks.netMin.val<=0?'var(--gap)':'var(--text)'}">${r(peaks.netMin.val)}<small>${timesLabel(peaks.netMin.times)}</small></div></div>
+    </div>
+  `;
+
+  host.innerHTML = `
+    ${kpis}
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Cobertura por franja — ${isAvg? 'Promedio de la semana ('+data.nDays+' días)' : (weekdayLabel(dk)+' '+fmtDateShort(dk))}</h3>
+        <span class="sub">Intervalos de ${state.granularity} min</span>
+      </div>
+      <div class="chart-box"><div class="chart-holder"><canvas id="covChart"></canvas></div></div>
+      <div class="legend-row">
+        <span><span class="swatch" style="background:var(--info)"></span>Programados</span>
+        <span><span class="swatch" style="background:var(--warn)"></span>En almuerzo</span>
+        <span><span class="swatch" style="background:var(--gap)"></span>En break</span>
+        <span><span class="swatch" style="background:var(--live)"></span>Operativos netos</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Picos y mínimos</h3>
+        <span class="sub">${isAvg?'Promedio semanal por franja de hora':weekdayLabel(dk)+' '+fmtDateShort(dk)}</span>
+      </div>
+      ${peakStats}
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Alertas de cobertura</h3>
+        <span class="sub">${isAvg? '' : gapIntervals.length+' franja(s) en cero'}</span>
+      </div>
+      <div class="alerts">${alertsHtml}</div>
+    </div>
+    <div class="panel interval-detail">
+      <div class="panel-head"><h3>Detalle por intervalo</h3><button type="button" class="copy-detail" id="copyCoverageDetail">⧉ Copiar detalle</button></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Hora</th><th>Segmentos seleccionados</th><th class="num">Programados</th><th class="num">Almuerzo</th><th class="num">Break</th><th class="num">Netos operativos</th><th class="num">% distribución</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  drawCoverageChart(intervals);
+  document.getElementById('copyCoverageDetail').onclick = ()=> copyCoverageDetail(intervals);
+}
+
+function copyCoverageDetail(intervals){
+  const totalNetos = intervals.reduce((total, item)=>total+item.netos, 0);
+  const segmentText = state.skillFilters.length ? state.skillFilters.join(', ') : 'Todos';
+  const header = ['Hora','Segmentos seleccionados','Programados','Almuerzo','Break','Netos operativos','% distribución'];
+  const lines = intervals.map(i=>[fmtTime(i.t)+'–'+fmtTime(i.tEnd), segmentText, i.programados, i.almuerzo, i.breakC, i.netos, (totalNetos ? i.netos/totalNetos*100 : 0).toFixed(1)+'%'].join('\t'));
+  const text = [header.join('\t'), ...lines].join('\n');
+  const done = ()=>showToast('Detalle copiado al portapapeles.');
+  if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text)); }
+  else fallbackCopy(text);
+  function fallbackCopy(value){
+    const area = document.createElement('textarea'); area.value=value; area.style.position='fixed'; area.style.opacity='0';
+    document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove(); done();
+  }
+}
+
+function drawCoverageChart(intervals, attempt){
+  attempt = attempt || 0;
+  const ctx = document.getElementById('covChart');
+  if(!ctx) return;
+  if(!window.Chart){
+    // Chart.js aún no terminó de cargar (CDN lento) — reintenta unas veces.
+    if(attempt < 20){ setTimeout(()=> drawCoverageChart(intervals, attempt+1), 200); return; }
+    drawFallbackCoverageChart(ctx, intervals);
+    return;
+  }
+  if(state.chart){ state.chart.destroy(); state.chart = null; }
+
+  const styles = getComputedStyle(document.body);
+  const cText = styles.getPropertyValue('--text-dim').trim();
+  const cGrid = styles.getPropertyValue('--border').trim();
+  const cLive = styles.getPropertyValue('--live').trim();
+  const cWarn = styles.getPropertyValue('--warn').trim();
+  const cGap = styles.getPropertyValue('--gap').trim();
+  const cInfo = styles.getPropertyValue('--info').trim();
+
+  const labels = intervals.map(i=> fmtTime(i.t));
+  const round1 = v => Math.round(v*10)/10;
+  state.chart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Programados', data: intervals.map(i=>round1(i.programados)), borderColor:cInfo, backgroundColor:cInfo+'22', borderDash:[5,4], borderWidth:1.5, pointRadius:0, tension:0.15, fill:false, order:1 },
+        { label:'Operativos netos', data: intervals.map(i=>round1(i.netos)), borderColor:cLive, backgroundColor:cLive+'33', borderWidth:2.5, pointRadius:0, tension:0.15, fill:true, order:4 },
+        { label:'En almuerzo', data: intervals.map(i=>round1(i.almuerzo)), borderColor:cWarn, backgroundColor:cWarn+'22', borderWidth:1.5, pointRadius:0, tension:0.15, fill:false, order:2 },
+        { label:'En break', data: intervals.map(i=>round1(i.breakC)), borderColor:cGap, backgroundColor:cGap+'22', borderWidth:1.5, pointRadius:0, tension:0.15, fill:false, order:3 },
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ display:false }, tooltip:{ titleColor:'#fff', bodyColor:'#fff' } },
+      scales:{
+        x:{ ticks:{ color:cText, maxTicksLimit:14, font:{ family:'Inter' } }, grid:{ color:cGrid, display:false } },
+        y:{ beginAtZero:true, ticks:{ color:cText, precision:0, font:{ family:'Inter' } }, grid:{ color:cGrid } }
+      }
+    }
+  });
+}
+
+function drawFallbackCoverageChart(canvas, intervals){
+  const holder = canvas.closest('.chart-holder');
+  if(!holder) return;
+  const width = Math.max(640, holder.clientWidth || 640);
+  const height = Math.max(240, holder.clientHeight || 300);
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = width*ratio; canvas.height = height*ratio;
+  canvas.style.width = width+'px'; canvas.style.height = height+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(ratio, ratio);
+  const styles = getComputedStyle(document.body);
+  const colors = ['--info','--live','--warn','--gap'].map(v=>styles.getPropertyValue(v).trim());
+  const text = styles.getPropertyValue('--text-dim').trim();
+  const left=42, right=14, top=16, bottom=30, w=width-left-right, h=height-top-bottom;
+  const max = Math.max(1, ...intervals.map(i=>Math.max(i.programados,i.netos,i.almuerzo,i.breakC)));
+  ctx.clearRect(0,0,width,height); ctx.font='11px Inter, sans-serif'; ctx.fillStyle=text; ctx.strokeStyle='#D7D7D7';
+  for(let n=0;n<=4;n++){ const y=top+h-(n/4)*h; ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(left+w,y); ctx.stroke(); ctx.fillText(Math.round(max*n/4),6,y+4); }
+  const series=[['programados',colors[0]],['netos',colors[1]],['almuerzo',colors[2]],['breakC',colors[3]]];
+  series.forEach(([field,color])=>{ ctx.beginPath(); intervals.forEach((item,index)=>{ const x=left+(index/Math.max(1,intervals.length-1))*w; const y=top+h-(item[field]/max)*h; index?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke(); });
+  intervals.forEach((item,index)=>{ if(index%Math.max(1,Math.ceil(intervals.length/12))===0){ const x=left+(index/Math.max(1,intervals.length-1))*w; ctx.fillStyle=text; ctx.fillText(fmtTime(item.t),x-14,height-8); } });
+}
+
+/* ============================= BOOT ============================= */
+initApp();
+</script>
+<script type="module">
+import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getFirestore, collection, doc, onSnapshot, getDocs, query, where, setDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+
+const gtrFirebaseConfig = {
+  apiKey:'AIzaSyDUjKHhV5tu9dG4GwA6HDQcjbi3-itb2dQ', authDomain:'t-publicado.firebaseapp.com', projectId:'t-publicado',
+  storageBucket:'t-publicado.firebasestorage.app', messagingSenderId:'389813504176', appId:'1:389813504176:web:9b23c92a6bd4557cd51375'
+};
+const gtrAppId = gtrFirebaseConfig.projectId;
+const gtrFirebase = getApps().length ? getApp() : initializeApp(gtrFirebaseConfig);
+const gtrAuth = getAuth(gtrFirebase);
+const gtrDb = getFirestore(gtrFirebase);
+const gtrAttendanceCollection = collection(gtrDb, 'artifacts', gtrAppId, 'public', 'data', 'gtr_attendance');
+const gtrCodeCollection = collection(gtrDb, 'artifacts', gtrAppId, 'public', 'data', 'gtr_codes');
+const gtrRuntime = window.__gtrRuntime || (window.__gtrRuntime = { started:false, seeded:false, seededDates:{}, attendanceDate:null, attendanceReady:null, resolveAttendanceReady:null, edits:{}, codes:null, stopAttendance:null, stopCodes:null, auth:null, historyLoaded:false });
+gtrRuntime.seededDates = gtrRuntime.seededDates || {};
+const defaultCodes = [
+  {code:'AS', description:'Asistencia', affectsHours:false}, {code:'TA', description:'Tardanza', affectsHours:false},
+  {code:'FAL', description:'Inasistencia', affectsHours:true}, {code:'MED', description:'Licencia médica', affectsHours:true},
+  {code:'PER', description:'Permiso', affectsHours:true}, {code:'DESC', description:'Descanso', affectsHours:false}, {code:'COMP', description:'Compensatorio', affectsHours:false}
+];
+const gtrEscape = (value)=>String(value==null?'':value).replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function registerGtrAlpine(){
+  if(!window.Alpine || window.__gtrRegistered) return;
+  window.__gtrRegistered = true;
+  Alpine.data('gtrApp', ()=>({
+    connected:false, sourceRows:[], edits:{}, codes:[], statusCodes:[],
+    countries:[], segments:[], supervisors:[], availableDates:[], date:'', intervalDate:'', query:'', country:'ALL', segment:'ALL', supervisor:'ALL', statusFilter:'ALL', subview:'daily',
+    init(){
+      if(!gtrRuntime.started){
+        gtrRuntime.started=true;
+        gtrRuntime.attendanceReady=new Promise(resolve=>{ gtrRuntime.resolveAttendanceReady=resolve; });
+        gtrRuntime.auth=gtrAuth.currentUser ? Promise.resolve(gtrAuth.currentUser) : signInAnonymously(gtrAuth).catch(()=>null);
+        gtrRuntime.stopCodes=onSnapshot(gtrCodeCollection, (snapshot)=>{ const remote=[]; snapshot.forEach(item=>remote.push(item.data())); if(remote.length) gtrRuntime.codes=remote; window.dispatchEvent(new CustomEvent('gtr:codes-updated')); window.gtrRenderConfigCodes && window.gtrRenderConfigCodes(); });
+      }
+      if(!this.__listenersBound){
+        this.__listenersBound=true;
+        window.addEventListener('gtr:source-updated', ()=>{ this.syncSource(); });
+        window.addEventListener('gtr:attendance-updated', ()=>{ this.applyAttendanceEdits(); this.connected=true; });
+        window.addEventListener('gtr:codes-updated', ()=>{ if(gtrRuntime.codes && gtrRuntime.codes.length){ this.codes=gtrRuntime.codes; this.statusCodes=gtrRuntime.codes.map(item=>item.code); } });
+      }
+      this.syncSource();
+      this.edits=gtrRuntime.edits;
+      if(gtrRuntime.codes){ this.codes=gtrRuntime.codes; this.statusCodes=gtrRuntime.codes.map(item=>item.code); }
+      this.$nextTick(()=>window.lucide && lucide.createIcons());
+    },
+    applyAttendanceEdits(){
+      this.sourceRows.forEach(row=>{
+        const edit=this.edits[row.key]||gtrRuntime.edits[row.key];
+        if(!edit) return;
+        row.status=edit.status||'AS';
+        row.supervisorUpdate=edit.supervisorUpdate||'';
+        row.note=edit.note||'';
+        row.country=edit.country||'Perú';
+      });
+    },
+    syncSource(){
+      const source=window.gtrState;
+      if(!source || !source.roster) return;
+      this.sourceRows=Array.from(source.roster.values()).map(rec=>{
+        const key=rec.legajo+'|'+rec.fecha; const edit=this.edits[key]||{};
+        return {key, legajo:rec.legajo, nombre:rec.nombre, equipo:rec.equipo||'', fecha:rec.fecha, horario:(typeof fmtTime==='function'?fmtTime(rec.ingOp):'—')+'–'+(typeof fmtTime==='function'?fmtTime(rec.salOp):'—'), ingOp:rec.ingOp, salOp:rec.salOp, skills:rec.skills||'', status:edit.status||'AS', supervisorUpdate:edit.supervisorUpdate||'', note:edit.note||'', country:edit.country||'Perú', modalidad:edit.modalidad||'—'};
+      });
+      this.availableDates=[...new Set(this.sourceRows.map(row=>row.fecha))].sort();
+      const today=new Date().toISOString().slice(0,10); const preferredDate=this.date; this.date=this.availableDates.includes(preferredDate)?preferredDate:(this.availableDates.includes(today)?today:(this.availableDates[this.availableDates.length-1]||today)); this.intervalDate=this.availableDates.includes(this.intervalDate)?this.intervalDate:this.date;
+      this.countries=[...new Set(this.sourceRows.map(row=>row.country))].sort(); this.segments=[...new Set(this.sourceRows.flatMap(row=>row.skills.split(';').map(value=>value.trim()).filter(Boolean)))].sort(); this.supervisors=[...new Set(this.sourceRows.map(row=>row.equipo).filter(Boolean))].sort(); this.rebuild();
+      ensureAttendanceDate(this.date);
+      seedAttendanceRows(this.sourceRows.filter(row=>row.fecha===this.date), this.date);
+    },
+    rebuild(){ ensureAttendanceDate(this.date); seedAttendanceRows(this.sourceRows.filter(row=>row.fecha===this.date), this.date); this.$nextTick(()=>window.lucide && lucide.createIcons()); },
+    async loadHistory(){
+      if(gtrRuntime.historyLoaded || this.historyLoading) return;
+      this.historyLoading=true;
+      try{
+        const snapshot=await getDocs(gtrAttendanceCollection);
+        snapshot.forEach(item=>{ gtrRuntime.edits[item.id]={...gtrRuntime.edits[item.id],...item.data()}; });
+        gtrRuntime.historyLoaded=true;
+        this.syncSource();
+      }catch(error){ window.showToast && showToast('No se pudo cargar el histórico: '+(error.message||'revisa permisos.'),true); }
+      this.historyLoading=false;
+    },
+    clearFilters(){ this.country='ALL'; this.segment='ALL'; this.supervisor='ALL'; this.statusFilter='ALL'; this.query=''; this.date=this.availableDates.includes(new Date().toISOString().slice(0,10))?new Date().toISOString().slice(0,10):(this.availableDates[this.availableDates.length-1]||''); this.intervalDate=this.date; },
+    get filteredRows(){ return this.sourceRows.filter(row=>row.fecha===this.date && (this.country==='ALL'||row.country===this.country) && (this.segment==='ALL'||row.skills.split(';').includes(this.segment)) && (this.supervisor==='ALL'||row.equipo===this.supervisor) && (this.statusFilter==='ALL'||row.status===this.statusFilter) && (!this.query||(`${row.nombre} ${row.legajo}`).toLowerCase().includes(this.query.toLowerCase()))); },
+    get kpis(){ const rows=this.filteredRows; return [{label:'Total programados',value:rows.length},{label:'Presentes (AS)',value:rows.filter(row=>row.status==='AS').length},{label:'Tardanzas (TA)',value:rows.filter(row=>row.status==='TA').length},{label:'Inasistencias (FAL)',value:rows.filter(row=>row.status==='FAL').length},{label:'Licencias / médicos',value:rows.filter(row=>['MED','PER'].includes(row.status)).length},{label:'Descansos',value:rows.filter(row=>['DESC','COMP'].includes(row.status)).length}]; },
+    get monthDays(){ const base=this.date||this.availableDates[this.availableDates.length-1]||new Date().toISOString().slice(0,10); const [year,month]=base.split('-').map(Number); const total=new Date(Date.UTC(year,month,0)).getUTCDate(); return Array.from({length:total},(_,index)=>({day:index+1,date:`${year}-${String(month).padStart(2,'0')}-${String(index+1).padStart(2,'0')}`})); },
+    get monthLabel(){ return this.monthDays[0] ? this.monthDays[0].date.slice(0,7) : 'Mes'; },
+    get matrixRows(){ const people=[...new Map(this.sourceRows.map(row=>[row.legajo,row])).values()]; return people.map(person=>({nombre:person.nombre,legajo:person.legajo,days:this.monthDays.map(day=>{const row=this.sourceRows.find(item=>item.legajo===person.legajo&&item.fecha===day.date);return {status:row?row.status:'—'};})})); },
+    get monthStats(){ const rows=this.sourceRows.filter(row=>this.monthDays.some(day=>day.date===row.fecha)); const absent=rows.filter(row=>row.status==='FAL').length; return {total:rows.length,absent,coverage:rows.length?Math.round((rows.filter(row=>!['FAL','MED','PER'].includes(row.status)).length/rows.length)*100):0}; },
+    get intervalRows(){ const rows=this.sourceRows.filter(row=>row.fecha===this.intervalDate); return Array.from({length:48},(_,index)=>{const start=index*30; const end=start+30; const matches=rows.filter(row=>{if(row.ingOp==null||row.salOp==null)return false;let shiftStart=Math.floor((((row.ingOp%86400000)+86400000)%86400000)/60000);let shiftEnd=Math.floor((((row.salOp%86400000)+86400000)%86400000)/60000);if(shiftEnd<=shiftStart)shiftEnd+=1440;return (start<shiftEnd&&end>shiftStart)||(start+1440<shiftEnd&&end+1440>shiftStart);}); const connected=matches.filter(row=>row.status==='AS').length; const late=matches.filter(row=>row.status==='TA').length; const absent=matches.filter(row=>row.status==='FAL').length; return {label:`${String(Math.floor(index/2)).padStart(2,'0')}:${index%2?'30':'00'}`,programados:matches.length,connected,late,absent,coverage:matches.length?Math.round(connected/matches.length*100):0,absence:matches.length?Math.round(absent/matches.length*100):0};}); },
+    rowHasChanges(row){ const saved=this.edits[row.key]||{}; return row.status!==(saved.status||'AS') || row.supervisorUpdate!==(saved.supervisorUpdate||'') || row.note!==(saved.note||'') || row.country!==(saved.country||'Perú'); },
+    get pendingRows(){ return this.sourceRows.filter(row=>row.fecha===this.date && this.rowHasChanges(row)); },
+    shortSupervisor(value){ return value?value.split(' ').slice(0,2).join(' '):'—'; },
+    statusClass(value){ return 'status-'+value; },
+    async saveRow(row){ if(!window.confirm(`¿Guardar los cambios de asistencia de ${row.nombre} (${row.legajo})?`)) return; const previous=this.edits[row.key]||{}; const next={status:row.status,supervisorUpdate:row.supervisorUpdate,note:row.note,country:row.country,updatedAt:new Date().toISOString()}; try{ await setDoc(doc(gtrAttendanceCollection,row.key),next,{merge:true}); this.edits[row.key]=next; window.showToast && showToast('Asistencia guardada.'); }catch(error){ Object.assign(row,previous); window.showToast && showToast('No se pudo guardar asistencia: '+(error.message||'revisa sesión y reglas Firebase.'),true); } },
+    async saveAll(){
+      const rows=this.pendingRows;
+      if(!rows.length) return;
+      if(!window.confirm(`¿Guardar los cambios de asistencia de ${rows.length} fila(s)?`)) return;
+      const stamp=new Date().toISOString();
+      try{
+        for(let offset=0; offset<rows.length; offset+=400){
+          const batch=writeBatch(gtrDb);
+          rows.slice(offset,offset+400).forEach(row=>batch.set(doc(gtrAttendanceCollection,row.key),{status:row.status,supervisorUpdate:row.supervisorUpdate,note:row.note,country:row.country,updatedAt:stamp},{merge:true}));
+          await batch.commit();
+        }
+        rows.forEach(row=>{ this.edits[row.key]={...(this.edits[row.key]||{}),status:row.status,supervisorUpdate:row.supervisorUpdate,note:row.note,country:row.country,updatedAt:stamp}; });
+        window.showToast && showToast(`${rows.length} asistencia(s) guardada(s).`);
+      }catch(error){ window.showToast && showToast('No se pudo guardar todo: '+(error.message||'revisa sesión y reglas Firebase.'),true); }
+    },
+    async saveCode(code){ try{ await setDoc(doc(gtrCodeCollection,code.code),code,{merge:true}); window.showToast && showToast('Motivo guardado.'); }catch(error){ window.showToast && showToast('No se pudo guardar motivo: '+(error.message||'requiere rol admin.'),true); } },
+  }));
+}
+function ensureAttendanceDate(date){
+  if(!date || gtrRuntime.attendanceDate===date && gtrRuntime.stopAttendance) return;
+  if(gtrRuntime.stopAttendance){ try{ gtrRuntime.stopAttendance(); }catch(error){} }
+  gtrRuntime.attendanceDate=date;
+  gtrRuntime.attendanceReady=new Promise(resolve=>{ gtrRuntime.resolveAttendanceReady=resolve; });
+  const dailyQuery=query(gtrAttendanceCollection, where('fecha','==',date));
+  gtrRuntime.stopAttendance=onSnapshot(dailyQuery, snapshot=>{
+    snapshot.forEach(item=>{ gtrRuntime.edits[item.id]={...gtrRuntime.edits[item.id],...item.data()}; });
+    if(gtrRuntime.resolveAttendanceReady){ gtrRuntime.resolveAttendanceReady(); gtrRuntime.resolveAttendanceReady=null; }
+    window.dispatchEvent(new CustomEvent('gtr:attendance-updated'));
+  }, error=>{
+    if(gtrRuntime.resolveAttendanceReady){ gtrRuntime.resolveAttendanceReady(); gtrRuntime.resolveAttendanceReady=null; }
+    console.warn('No se pudo sincronizar asistencia diaria', error);
+  });
+}
+  async function seedAttendanceRows(rows,date){
+    if(!date || gtrRuntime.seededDates[date] || !rows.length) return;
+    gtrRuntime.seededDates[date]=true;
+    try{
+      await gtrRuntime.auth;
+      if(gtrRuntime.attendanceReady) await gtrRuntime.attendanceReady;
+      const missingRows=rows.filter(row=>!gtrRuntime.edits[row.key]);
+      for(let offset=0; offset<missingRows.length; offset+=400){
+        const batch=writeBatch(gtrDb);
+        missingRows.slice(offset,offset+400).forEach(row=>batch.set(doc(gtrAttendanceCollection,row.key),{legajo:row.legajo,nombre:row.nombre,fecha:row.fecha,equipo:row.equipo,horario:row.horario,status:row.status,initializedAt:new Date().toISOString()},{merge:true}));
+        await batch.commit();
+      }
+    }catch(error){
+      delete gtrRuntime.seededDates[date];
+      console.warn('No se pudo inicializar gtr_attendance', error);
+    }
+  }
+window.gtrRenderConfigCodes=()=>{
+  const host=document.getElementById('gtrConfigCodesBody');
+  if(!host) return;
+  const codes=gtrRuntime.codes||defaultCodes;
+  host.innerHTML=codes.map((code,index)=>`<div class="gtr-code-row"><input data-code-field="code" data-code-index="${index}" value="${gtrEscape(code.code)}"><input data-code-field="description" data-code-index="${index}" value="${gtrEscape(code.description)}"><label><input type="checkbox" data-code-field="affectsHours" data-code-index="${index}" ${code.affectsHours?'checked':''}> Afecta horas</label><button type="button" data-save-code="${index}">Guardar</button><button type="button" class="danger" data-delete-code="${index}">Eliminar</button></div>`).join('');
+  host.querySelectorAll('[data-save-code]').forEach(button=>button.onclick=async()=>{
+    const index=Number(button.dataset.saveCode); const fields=[...host.querySelectorAll(`[data-code-index="${index}"]`)]; const code={code:fields.find(field=>field.dataset.codeField==='code').value.trim(),description:fields.find(field=>field.dataset.codeField==='description').value.trim(),affectsHours:fields.find(field=>field.dataset.codeField==='affectsHours').checked};
+    if(!code.code || !code.description) return showToast('Completa código y descripción.',true);
+    if(!window.confirm(`¿Guardar los cambios del motivo ${code.code}?`)) return;
+    const previous=gtrRuntime.codes[index];
+    try{ await setDoc(doc(gtrCodeCollection,code.code),code,{merge:true}); gtrRuntime.codes[index]=code; window.gtrRenderConfigCodes(); showToast('Motivo guardado en Firebase.'); }
+    catch(error){ gtrRuntime.codes[index]=previous; window.gtrRenderConfigCodes(); showToast('No se pudo guardar el motivo: '+(error.message||'revisa permisos.'),true); }
+  });
+  host.querySelectorAll('[data-delete-code]').forEach(button=>button.onclick=async()=>{
+    const index=Number(button.dataset.deleteCode); const code=gtrRuntime.codes[index];
+    try{ await window.gtrDeleteCode(code); }catch(error){ showToast('No se pudo eliminar el motivo: '+(error.message||'revisa permisos.'),true); }
+  });
+};
+window.gtrSaveCode=async(code)=>{
+  await setDoc(doc(gtrCodeCollection,code.code),code,{merge:true});
+};
+window.gtrDeleteCode=async(code)=>{
+  if(!window.confirm(`¿Eliminar el motivo ${code.code}? Esta acción no se puede deshacer.`)) return;
+  await deleteDoc(doc(gtrCodeCollection,code.code));
+  gtrRuntime.codes=(gtrRuntime.codes||[]).filter(item=>item.code!==code.code);
+  window.gtrRenderConfigCodes();
+  showToast('Motivo eliminado de Firebase.');
+};
+if(window.Alpine) registerGtrAlpine(); else document.addEventListener('alpine:init',registerGtrAlpine);
+window.gtrInitAttendance=()=>{ if(window.Alpine){ registerGtrAlpine(); Alpine.initTree(document.getElementById('gtrAttendanceRoot')); } };
+</script>
+</body>
+</html>
