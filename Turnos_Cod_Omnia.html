@@ -1694,7 +1694,7 @@ initApp();
 </script>
 <script type="module">
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import { getFirestore, collection, doc, onSnapshot, getDocs, query, where, setDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const gtrFirebaseConfig = {
@@ -1726,7 +1726,7 @@ function registerGtrAlpine(){
       if(!gtrRuntime.started){
         gtrRuntime.started=true;
         gtrRuntime.attendanceReady=new Promise(resolve=>{ gtrRuntime.resolveAttendanceReady=resolve; });
-        gtrRuntime.auth=gtrAuth.currentUser ? Promise.resolve(gtrAuth.currentUser) : signInAnonymously(gtrAuth).catch(()=>null);
+        gtrRuntime.auth=Promise.resolve(gtrAuth.currentUser);
         gtrRuntime.stopCodes=onSnapshot(gtrCodeCollection, (snapshot)=>{ const remote=[]; snapshot.forEach(item=>remote.push(item.data())); if(remote.length) gtrRuntime.codes=remote; window.dispatchEvent(new CustomEvent('gtr:codes-updated')); window.gtrRenderConfigCodes && window.gtrRenderConfigCodes(); });
       }
       if(!this.__listenersBound){

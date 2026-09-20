@@ -2,8 +2,8 @@
 
 ## Estructura
 
-- `frontend/`: configuracion y autenticacion Firebase del navegador.
-- `functions/`: backend Firebase Functions para administrar roles.
+- `frontend/firebase-auth.js`: autenticacion Firebase del navegador y permisos.
+- `functions/`: backend Firebase Functions para administrar roles sin exponer credenciales administrativas.
 - `firestore.rules`: permisos de datos.
 - `firebase.json`: configuracion de Firestore, Functions y Hosting.
 - `Turnos_Cod_Omnia.html`: visual publicada actual.
@@ -14,9 +14,10 @@
 2. Ejecuta `firebase login`.
 3. En esta carpeta ejecuta `firebase use --add` y selecciona tu proyecto.
 4. Habilita Authentication en Firebase Console, usando Email/Password o Google.
-5. Copia `frontend/firebase-config.example.js` como `frontend/firebase-config.js` y completa los valores de la app web.
-6. Instala backend: `cd functions` y luego `npm install`.
-7. Desde la carpeta raiz ejecuta `firebase deploy --only firestore:rules,functions,hosting`.
+5. Instala backend: `cd functions` y luego `npm install`.
+6. Desde la carpeta raiz ejecuta `firebase deploy --only firestore:rules,functions,hosting`.
+
+La configuracion web de Firebase incluida en `frontend/firebase-auth.js` no es un secreto: Firebase la usa en el navegador. No publiques nunca claves de cuenta de servicio, contrasenas ni archivos `.env`.
 
 ## Crear usuarios y roles
 
@@ -35,7 +36,7 @@ Roles disponibles:
 - `data.write`: puede entrar a Configuracion y cargar/borrar datos.
 - `admin`: todos los permisos y administracion de roles.
 
-Despues de cambiar roles, el usuario debe cerrar sesion y volver a entrar para renovar sus Custom Claims.
+Despues de cambiar roles, el usuario debe cerrar sesion y volver a entrar para renovar sus Custom Claims. El callable `setUserRoles` solo puede ser invocado por un usuario con rol `admin`.
 
 Tambien puedes asignar roles por correo con `functions/scripts/set-user-role.js`. Descarga una cuenta de servicio desde Firebase Console > Project settings > Service accounts, guardala fuera del proyecto y ejecuta en PowerShell:
 

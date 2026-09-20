@@ -15,10 +15,10 @@ service cloud.firestore {
       allow write: if canWriteData();
     }
     match /artifacts/{appId}/public/data/gtr_attendance/{document} {
-      allow read, write: if signedIn();
+      allow read, write: if canWriteData();
     }
     match /artifacts/{appId}/public/data/gtr_codes/{document} {
-      allow read: if signedIn();
+      allow read: if canReadCoverage();
       allow write: if hasRole('admin');
     }
     // Usuarios y roles viven en Firebase Authentication/Custom Claims,
