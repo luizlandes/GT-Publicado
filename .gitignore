@@ -1,4 +1,6 @@
 frontend/firebase-config.js
-functions/node_modules/
+**/node_modules/
 .firebase/
 .env
+firebase-debug.log
+**/.firebase/

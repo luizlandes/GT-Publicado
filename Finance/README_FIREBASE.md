@@ -2,17 +2,17 @@
 
 ## Estructura
 
-- `frontend/firebase-auth.js`: autenticacion Firebase del navegador y permisos.
+- `public/frontend/firebase-auth.js`: autenticacion Firebase del navegador y permisos.
 - `functions/`: backend Firebase Functions para administrar roles sin exponer credenciales administrativas.
 - `firestore.rules`: permisos de datos.
 - `firebase.json`: configuracion de Firestore, Functions y Hosting.
-- `Turnos_Cod_Omnia.html`: visual publicada actual.
+- `public/index.html`: visual publicada actual.
 
 ## Primer despliegue
 
 1. Instala Firebase CLI: `npm install -g firebase-tools`.
 2. Ejecuta `firebase login`.
-3. En esta carpeta ejecuta `firebase use --add` y selecciona tu proyecto.
+3. Entra en `Finance` y ejecuta los comandos Firebase desde esa carpeta.
 4. Habilita Authentication en Firebase Console, usando Email/Password o Google.
 5. Instala backend: `cd functions` y luego `npm install`.
 6. Desde la carpeta raiz ejecuta `firebase deploy --only firestore:rules,functions,hosting`.
